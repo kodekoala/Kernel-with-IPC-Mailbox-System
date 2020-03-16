@@ -36,7 +36,7 @@ mbox_t;
 
 LIST_HEAD(mailBoxes);
 
-unsigned int mailboxCount = 0;
+static unsigned int mailboxCount = 0;
 
 /*
 creates a new empty mailbox with ID id, if it does not already exist, and 
@@ -137,19 +137,23 @@ long list_mbox_421(unsigned long * mbxes, long k) {
 
   //check if passed in pointer is valid
   if (mbxes == NULL || k < 0)
-    return EFAULT;
+    return -EFAULT;
   
   struct list_head *pos;
   unsigned int writtenIDs = 0; //num of written IDs
   
   //User is requesting for too many mboxes
-  if (k > mailboxCount)
-    return EFAULT;
+  int count = k;
+  if (k > mailboxCount){
+    count = mailboxCount;
+  }
+
+  //if (!access_ok(VERIFY_WRITE, mbxes, count*sizeof(unsigned long))) return -EFAULT;
     
   list_for_each(pos, &mailBoxes) {
     mbox_t* theBox = NULL;
     theBox = list_entry(pos, mbox_t, list_node);
-    if (writtenIDs < k) {
+    if (writtenIDs < count) {
       printf("Mailbox %lu\n", theBox->boxId);
       mbxes[writtenIDs] = theBox->boxId;
       writtenIDs++;
@@ -177,9 +181,10 @@ with a length of zero shall be accepted as valid.
 long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
-    return EFAULT;
-  // if (n < 0) //check msg length n for invalid size
-  //   return EIO;
+    return -EFAULT;
+
+  //if (!access_ok(VERIFY_WRITE, mbxes, count*sizeof(unsigned long))) return -EFAULT;
+
 
   struct list_head * currBox;
   list_for_each(currBox, &mailBoxes) { //loop mailboxes
@@ -201,11 +206,12 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
       msgNode->msg = NULL;
       msgNode->msgLen = 0;
       //kmalloc
-      uint32_t *kernelKey = (uint32_t *) malloc (sizeof(key));
-      memcpy (&kernelKey[0], &key[0], sizeof(key));
+      uint32_t *kernelKey;
 
       if (box -> encryption == 0) {
         //XOR Cipher
+        kernelKey = (uint32_t *) malloc (sizeof(key));
+        memcpy (&kernelKey[0], &key[0], sizeof(key));
         newLen = xorCrypt(&(msgNode->msg), kernelMsg, msg, n, kernelKey);
         for (int i = 0 ; i < n ; i++ ){
           //msgNode->msg[i] = 'a';
@@ -214,6 +220,10 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
       }
       else{
         //XTEA Cipher
+        kernelKey = (uint32_t *) malloc (4 * sizeof(uint32_t));
+        for (int i = 0; i < 4; i++){
+          memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+        }
         int BLOCK_SIZE = 8;
         long padding;
 
@@ -239,6 +249,14 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
             kernelMsg[i] = 0x00;
         }  
 
+        printf("111111111111111111111111111111\n");
+
+        for (int i = 0 ; i < newLen ; i++ ){
+            printf("%d\n", kernelMsg[i]);
+        }
+
+        printf("222222222222222222222222222222\n");
+
         //int i = 0; i + 8 < newLen; i += 8*sizeof(unsigned char)
         int i = 0;
           // This assumes that data is aligned on a 4-byte boundary
@@ -247,29 +265,26 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
             memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
             memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
 
+            printf("Printing out temp contents\n");
+
+            for (int i = 0 ; i < 2 ; i++ ){
+              printf("%d\n", temp[i]);
+              printf(":)\n");
+            }
+
+            //uint32_t *kernelKey = (uint32_t *) malloc (sizeof(key));
+
+
             //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_enc(((uint32_t *)temp), key);
+            xtea_enc(((uint32_t *)temp), kernelKey);
             memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
             i += (8 * sizeof(unsigned char));
         }while(i < newLen);
 
 
-        for (int i = 0 ; i < newLen ; i++ ){
+        for (int i = 0 ; i < newLen ; i+=4 ){
             printf("%d\n", kernelMsg[i]);
         }
-
-        i = 0;
-
-        do{
-            printf("Second one, i is equal to: %d\n", i);
-
-            memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-            memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-            //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_dec(((uint32_t *)temp), key);
-            memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
-            i += (8 * sizeof(unsigned char));
-        }while(i < newLen);
 
         free(temp);
 
@@ -279,60 +294,19 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
 
         free(kernelMsg);
         //free(kernelKey);
-
-        for (int i = 0 ; i < n ; i++ ){
-            printf("%c\n", msgNode->msg[i]);
-        }
       }
 
-      printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-      for (int i = 0 ; i < n ; i++ ){
+      printf("3333333333333333333333333333333333333\n");
+      for (int i = 0 ; i < newLen ; i++ ){
          //msgNode->msg[i] = 'a';
         printf("%d\n", msgNode->msg[i]);
       }
 
       free(kernelKey);
 
-
-      //add to mailbox
-      // msgNode_t * msgNode = (msgNode_t * ) malloc(sizeof(msgNode_t));
-      // if(!msgNode){
-      //   fprintf(stderr, "Allocation Error\n");
-      //   return ENOMEM;
-      // }
-
-      // msgNode -> msg = (unsigned char *) malloc (sizeof(boxMsg));
-      // memcpy (msgNode -> msg, boxMsg, sizeof(boxMsg));
-      // //msgNode -> msg = boxMsg;
-
-
-      // for (int i = 0 ; i < n ; i++ ){
-      //     printf("%c\n", msgNode -> msg[i]);
-      // }
-
       msgNode -> msgLen = n;
       list_add_tail( &msgNode -> list_node, &box -> msgs);
-      //list_add_tail( &currBox -> msgs, &box -> msgs);
-      //list_add_tail( & new_mbox -> list_node, &mailBoxes);
 
-
-      // printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-      // //printf("%d\n", &box->msgs->msgLen);
-      // struct list_head * currBox;
-
-      // list_for_each(currBox, &box -> msgs) {
-
-      //     msgNode_t * pos = NULL;
-
-      //     //Get the mbox_t struct that corresponds to the list_node 
-      //     //that is currently pointed to by the currBox pointer in the mboxes list
-      //     pos = list_entry(currBox, msgNode_t, list_node);
-
-      //     for (int i = 0 ; i < n ; i++ ){
-      //       printf("%c\n", pos->msg[i]);
-      //     }
-
-      // }
 
       return n; //number of bytes stored on success
       //error code on failure
@@ -344,7 +318,14 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
 
 
 long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey){
-  long padding = n % 4;
+  int BLOCK_SIZE = 4;
+  int padding;
+  if (n < BLOCK_SIZE){
+      padding = BLOCK_SIZE - n;
+   }
+   else{
+      padding = n % BLOCK_SIZE;
+   }
   long newLen = n + padding;
 
   *boxMsg = (unsigned char *)malloc(n*sizeof(unsigned char*));
@@ -385,7 +366,14 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
 }
 
 long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key){
-  long padding = n % 4;
+  int BLOCK_SIZE = 4;
+  int padding;
+  if (n < BLOCK_SIZE){
+      padding = BLOCK_SIZE - n;
+   }
+   else{
+      padding = n % BLOCK_SIZE;
+   }
   long newLen = n + padding;
 
   //In kernel code we need to copy to kernel memory
@@ -471,14 +459,12 @@ static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t
   if (n < 0 || msg == NULL) //check msg length n for negative
     return EFAULT;
 
-  long newLen = n;
+  long adjustedLen = n;
   long messageLen = len_msg_421(id);
   if(n > messageLen){
-    newLen = messageLen;
+    adjustedLen = messageLen;
   }
 
-
-  
   //loop mboxes
   struct list_head *currBox;
   list_for_each(currBox, &mailBoxes) { //find mbox id
@@ -497,8 +483,7 @@ static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t
       unsigned int count = 0;
 
       //kmalloc
-      uint32_t *kernelKey = (uint32_t *) malloc (sizeof(key));
-      memcpy (&kernelKey[0], &key[0], sizeof(key));
+      uint32_t *kernelKey; 
       
       // if (sizeof(msg) < n){
       //   n = sizeof(msg);
@@ -508,10 +493,72 @@ static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t
 
       if (pos -> encryption == 0) {
         //XOR Cipher
-        xorDecrypt(firstMsg->msg, kernelMsg, msg, newLen, kernelKey);
+        kernelKey = (uint32_t *) malloc (sizeof(key));
+        memcpy (&kernelKey[0], &key[0], sizeof(key));
+        xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
       }
       else{
+        //XTEA Cipher
+        kernelKey = (uint32_t *) malloc (4 * sizeof(uint32_t));
+        for (int i = 0; i < 4; i++){
+          memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+        }
 
+        //memcpy (&kernelKey[0], &key[0], 4 * sizeof(uint32_t));
+        int BLOCK_SIZE = 8;
+        long padding;
+
+         if (adjustedLen < BLOCK_SIZE){
+            padding = BLOCK_SIZE - adjustedLen;
+         }
+         else{
+            padding = adjustedLen % BLOCK_SIZE;
+         }
+        int newLen = adjustedLen + padding;
+
+        // msgNode->msg = (unsigned char *)malloc(newLen*sizeof(unsigned char*));
+        // if(!msgNode->msg){
+        //   fprintf(stderr, "Allocation Error\n");
+        //   return ENOMEM;
+        // }
+
+        //In kernel code we need to copy to kernel memory
+        kernelMsg = (unsigned char *) malloc (newLen*sizeof(unsigned char));
+        uint32_t *temp = (uint32_t *) malloc (8*sizeof(unsigned char));
+        memcpy (&kernelMsg[0], &(firstMsg->msg)[0], sizeof(firstMsg->msg));
+        // for (int i = adjustedLen; i < newLen; i++){
+        //     kernelMsg[i] = 0x00;
+        // }  
+
+        printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+
+        for (int i = 0 ; i < newLen ; i++ ){
+            printf("%d\n", kernelMsg[i]);
+        }
+
+        printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+
+        int i = 0;
+
+        do{
+            printf("Second one, i is equal to: %d\n", i);
+
+            memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
+            memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
+            //((uint32_t *)temp)[0] ^= *kernelKey;
+            xtea_dec(((uint32_t *)temp), kernelKey);
+            memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
+            i += (8 * sizeof(unsigned char));
+        }while(i < newLen);
+
+        free(temp);
+
+        for (int i=0; i<adjustedLen; i++) {
+          msg[i] = kernelMsg[i];
+        }
+
+        free(kernelMsg);
+        //free(kernelKey);
       }
 
     
@@ -530,12 +577,12 @@ static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t
       list_del(&firstMsg->list_node);
       free(firstMsg);
 
-
-      for (int i = 0 ; i < n ; i++ ){
+      printf("%lu\n", adjustedLen);
+      for (int i = 0 ; i < adjustedLen ; i++ ){
         printf("%d\n", msg[i]);
       }
       //kfree(s);      
-      return ((count < n) ? count : n); //return minimum(n, len(msg @ id))
+      return (adjustedLen); //return minimum(n, len(msg @ id))
     }
   }
   printf("Mailbox with ID: %lu does not exist\n", id);
@@ -675,6 +722,7 @@ int main(void) {
   printf("=============================\n");
   printf("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
 
+  //uint32_t keyarr[] = {0x0000, 0x0000, 0x1BAD, 0xC0DE};
   uint32_t keyarr = 0x1BADC0DE;
   uint32_t * key = &keyarr;
 
@@ -692,7 +740,16 @@ int main(void) {
   printf("There are currently %lu messages in box with ID 50\n", count_msg_421(50));
   printf("=============================\n");
   recv_msg_421(50, usrmsg, 6, key);
+  printf("-------------------------------------\n");
 
+  // for (int i = 0; i < 6; i++){
+  //   printf("%d\n", usrmsg[i]);   // unsigned long
+  //   i++;
+  // }
+
+  for (int i = 0 ; i < 6 ; i++ ){
+    printf("%d\n", usrmsg[i]);
+  }
 
   free(usrmsg);
   printf("=============================\n");
