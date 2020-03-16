@@ -511,6 +511,8 @@ long len_msg(unsigned long id) {
   return ENOENT;
 }
 
+static void xorCrypt(unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key);
+
 /*
 int main(void) {
   //send_msg id msg len key
