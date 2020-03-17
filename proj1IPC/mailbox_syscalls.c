@@ -6,8 +6,7 @@ returns 0. If the crypt_alg parameter is 0, the mailbox's messages shall
 be encrypted with the XOR cipher described above. Otherwise, the messages 
 shall be encrypted with the XTEA algorithm.
  */
-//SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg) {
-long create_mbox_421(unsigned long id, int crypt_alg) {
+SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
 
   if (geteuid() != 0) {
     // Tell user to run app as root, then exit.
@@ -52,8 +51,7 @@ long create_mbox_421(unsigned long id, int crypt_alg) {
    If the mailbox is not empty, this system call shall return
    an appropriate error and not remove the mailbox.
  */
-//SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id) {}
-long remove_mbox_421(unsigned long id) {
+SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
 
   if (geteuid() != 0) {
     // Tell user to run app as root, then exit.
@@ -94,8 +92,7 @@ Returns a list of up to k mailbox IDs in the user-space variable mbxes.
 It returns the number of IDs written successfully to mbxes on success 
 and an appropriate error code on failure.
 */
-//SYSCALL_DEFINE5(list_mbox_421, unsigned long __user *, mbxes, long, k) {
-long list_mbox_421(unsigned long * mbxes, long k) {
+SYSCALL_DEFINE3(list_mbox_421, unsigned long __user *, mbxes, long, k) {
 
   //check if passed in pointer is valid
   if (mbxes == NULL || k < 0)
@@ -127,8 +124,7 @@ long list_mbox_421(unsigned long * mbxes, long k) {
 
 /* returns the number of existing mailboxes.
  */
-//SYSCALL_DEFINE4(count_mbox_421, void) {
-long int count_mbox_421(void) {
+SYSCALL_DEFINE2(count_mbox_421, void) {
   return mailboxCount;
 }
 
@@ -139,8 +135,7 @@ length n) on success, and an appropriate error code on failure. Messages with ne
 shall be rejected as invalid and cause an appropriate error to be returned, however messages 
 with a length of zero shall be accepted as valid.
  */
-//SYSCALL_DEFINE6(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {}
-long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
+SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
@@ -412,8 +407,7 @@ the specified key, and removes the entire message from the mailbox (even if only
 Returns the number of bytes successfully copied (which shall be the minimum of the length of the message that is stored and n) 
 n success or an appropriate error code on failure.
 */
-//SYSCALL_DEFINE7(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {}
-static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
+SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
@@ -559,8 +553,7 @@ static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t
 /* performs the same operation as recv_msg_421() without
    removing the message from the mailbox.
  */
-//SYSCALL_DEFINE8(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {}
-long peek_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
+SYSCALL_DEFINE6(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
 
@@ -676,8 +669,7 @@ long peek_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
 /* Returns the number of messages in the mailbox id on
    success or an appropriate error code on failure.
  */
-//SYSCALL_DEFINE9(count_msg_421, unsigned long, id) {}
-long count_msg_421(unsigned long id) {
+SYSCALL_DEFINE7(count_msg_421, unsigned long, id) {
   
   long count = 0;
   struct list_head * currBox;
@@ -714,8 +706,7 @@ long count_msg_421(unsigned long id) {
    are no messages in the mailbox, this shall return an appropriate
    error value.
  */
-//SYSCALL_DEFINE10(len_msg_421, unsigned long, id) {}
-long len_msg_421(unsigned long id) {
+SYSCALL_DEFINE8(len_msg_421, unsigned long, id) {
   
   struct list_head * currBox;
 
@@ -746,69 +737,75 @@ long len_msg_421(unsigned long id) {
   return -ENOENT;
 }
 
-int main(void) {
-  long k = 5;
-  unsigned long * mbxes = (unsigned long * ) kmalloc(sizeof(unsigned long) * k);;
-  create_mbox_421(50, 0);
-  create_mbox_421(51, 0);
-  create_mbox_421(52, 0);
-  create_mbox_421(53, 0);
-  create_mbox_421(54, 0);
-  printk("=============================\n");
-  printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
+// int main(void) {
+//   long k = 5;
+//   unsigned long * mbxes = (unsigned long * ) kmalloc(sizeof(unsigned long) * k);;
+//   create_mbox_421(50, 0);
+//   create_mbox_421(51, 0);
+//   create_mbox_421(52, 0);
+//   create_mbox_421(53, 0);
+//   create_mbox_421(54, 0);
+//   printk("=============================\n");
+//   printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
 
-  //uint32_t keyarr[] = {0x0000, 0x0000, 0x1BAD, 0xC0DE};
-  uint32_t keyarr = 0x1BADC0DE;
-  uint32_t * key = &keyarr;
+//   //uint32_t keyarr[] = {0x0000, 0x0000, 0x1BAD, 0xC0DE};
+//   uint32_t keyarr = 0x1BADC0DE;
+//   uint32_t * key = &keyarr;
 
-  unsigned char theMsg[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x12, 0x34, 0xBE, 0xEF, 0x12};
-  //unsigned char theMsg[] = {'A', 'B', 'C', 'D', 'E', 'F'};
+//   unsigned char theMsg[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x12, 0x34, 0xBE, 0xEF, 0x12};
+//   //unsigned char theMsg[] = {'A', 'B', 'C', 'D', 'E', 'F'};
 
-  //unsigned char theMsg[] = {0x12, 0x34};
+//   //unsigned char theMsg[] = {0x12, 0x34};
 
-  unsigned char * msg = theMsg;
+//   unsigned char * msg = theMsg;
 
-  unsigned char * usrmsg = (unsigned char * ) kmalloc(9 * sizeof(unsigned char));
+//   unsigned char * usrmsg = (unsigned char * ) kmalloc(9 * sizeof(unsigned char));
 
-  send_msg_421(50, msg, 9, key);
-  printk("=============================\n");
-  printk("There are currently %lu messages in box with ID 50\n", count_msg_421(50));
-  printk("=============================\n");
-  recv_msg_421(50, usrmsg, 9, key);
-  printk("-------------------------------------\n");
+//   send_msg_421(50, msg, 9, key);
+//   printk("=============================\n");
+//   printk("There are currently %lu messages in box with ID 50\n", count_msg_421(50));
+//   printk("=============================\n");
+//   peek_msg_421(50, usrmsg, 9, key);
+//   for (int i = 0 ; i < 9 ; i++ ){
+//     printk("%d\n", usrmsg[i]);
+//   }
+//   printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
-  // for (int i = 0; i < 6; i++){
-  //   printk("%d\n", usrmsg[i]);   // unsigned long
-  //   i++;
-  // }
+//   recv_msg_421(50, usrmsg, 9, key);
+//   printk("-------------------------------------\n");
 
-  for (int i = 0 ; i < 9 ; i++ ){
-    printk("%d\n", usrmsg[i]);
-  }
+//   // for (int i = 0; i < 6; i++){
+//   //   printk("%d\n", usrmsg[i]);   // unsigned long
+//   //   i++;
+//   // }
 
-  kfree(usrmsg);
-  printk("=============================\n");
-  printk("Number of messages in box with ID 50: %lu\n", count_msg_421(50));   // unsigned long
+//   for (int i = 0 ; i < 9 ; i++ ){
+//     printk("%d\n", usrmsg[i]);
+//   }
 
-  list_mbox_421(mbxes, k);
-  remove_mbox_421(50);
-  remove_mbox_421(51);
-  remove_mbox_421(52);
-  remove_mbox_421(53);
-  remove_mbox_421(54);
-  printk("=============================\n");
+//   kfree(usrmsg);
+//   printk("=============================\n");
+//   printk("Number of messages in box with ID 50: %lu\n", count_msg_421(50));   // unsigned long
 
-  printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
+//   list_mbox_421(mbxes, k);
+//   remove_mbox_421(50);
+//   remove_mbox_421(51);
+//   remove_mbox_421(52);
+//   remove_mbox_421(53);
+//   remove_mbox_421(54);
+//   printk("=============================\n");
 
-  printk("=============================\n");
+//   printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
 
-  long i = 0;
-  while (i < k){
-    printk("ID: %lu\n", mbxes[i]);   // unsigned long
-    i++;
-  }
+//   printk("=============================\n");
 
-  kfree(mbxes);
+//   long i = 0;
+//   while (i < k){
+//     printk("ID: %lu\n", mbxes[i]);   // unsigned long
+//     i++;
+//   }
 
-  return 0;
-}
+//   kfree(mbxes);
+
+//   return 0;
+// }

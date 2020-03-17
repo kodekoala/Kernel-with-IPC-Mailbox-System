@@ -776,6 +776,13 @@ int main(void) {
   printf("=============================\n");
   printf("There are currently %lu messages in box with ID 50\n", count_msg_421(50));
   printf("=============================\n");
+  peek_msg_421(50, usrmsg, 9, key);
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+
+  for (int i = 0 ; i < 9 ; i++ ){
+    printf("%d\n", usrmsg[i]);
+  }
+  printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
   recv_msg_421(50, usrmsg, 9, key);
   printf("-------------------------------------\n");
 
