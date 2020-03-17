@@ -401,26 +401,15 @@ static void xtea_dec(uint32_t *v, uint32_t const key[4]) {
 }
 
 
-/* 
-Copies up to n characters from the next message in the mailbox id to the user-space buffer msg, decrypting with 
-the specified key, and removes the entire message from the mailbox (even if only part of the message is copied out).
-Returns the number of bytes successfully copied (which shall be the minimum of the length of the message that is stored and n) 
-n success or an appropriate error code on failure.
-*/
-SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
-
-  if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
+static long receive(int delete, unsigned long id, unsigned char * msg, long n, uint32_t * key) {
+if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
 
-  if (!access_ok(VERIFY_WRITE, msg, n*sizeof(unsigned char))) return -EFAULT;
+  //if (!access_ok(VERIFY_WRITE, msg, n*sizeof(unsigned char))) return -EFAULT;
 
   long adjustedLen = n;
-  long messageLen = len_msg_421(id);
-  if(n > messageLen){
-    adjustedLen = messageLen;
-  }
 
-  printk("adjustedLen: %ld\n", adjustedLen);
+  printf("adjustedLen: %ld\n", adjustedLen);
 
   //loop mboxes
   struct list_head *currBox;
@@ -430,30 +419,34 @@ SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
     if (pos->boxId == id) {
       if (list_empty(&pos->msgs)) { //check if empty
-        printk("No message in mailbox with ID: %lu\n", id);
-        return -ENOENT; //return error if no messages
+        printf("No message in mailbox with ID: %lu\n", id);
+        return ENOENT; //return error if no messages
       }
       //otherwise find the first message
       msgNode_t* firstMsg = list_first_entry(&pos->msgs, msgNode_t, list_node);
 
       unsigned char *kernelMsg;
-      unsigned int count = 0;
+
+      long messageLen = firstMsg->msgLen;
+      if(n > messageLen){
+        adjustedLen = messageLen;
+      }
 
       //kmalloc
       uint32_t *kernelKey; 
 
       if (pos -> encryption == 0) {
         //XOR Cipher
-        if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (sizeof(key));
+        //if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
+        kernelKey = (uint32_t *) malloc (sizeof(key));
         copy_from_user( &kernelKey[0], &key[0], sizeof(key));
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
       }
       else{
         //XTEA Cipher
-        if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t));
+        //if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
+        kernelKey = (uint32_t *) malloc (4 * sizeof(uint32_t));
         for (int i = 0; i < 4; i++){
           copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -471,41 +464,28 @@ SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         int newLen = adjustedLen + padding;
 
         //In kernel code we need to copy to kernel memory
-        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
-        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char));
+        kernelMsg = (unsigned char *) malloc (newLen*sizeof(unsigned char));
+        uint32_t *temp = (uint32_t *) malloc (8*sizeof(unsigned char));
         memcpy (&kernelMsg[0], &(firstMsg->msg)[0], newLen*sizeof(unsigned char));
 
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+        printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 
         for (int i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
+            printf("%d\n", kernelMsg[i]);
         }
 
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+        printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 
         int i = 0;
 
-        // do{
-        //     printk("i is equal to: %d\n", i);
-        //     memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-        //     memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-
-        //     printk("Printing out temp contents\n");
-
-        //     //((uint32_t *)temp)[0] ^= *kernelKey;
-        //     xtea_enc(((uint32_t *)temp), kernelKey);
-        //     memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
-        //     i += (8 * sizeof(unsigned char));
-        // }while(i < newLen);
-
         do{
-            printk("Second one, i is equal to: %d\n", i);
+            printf("Second one, i is equal to: %d\n", i);
 
             memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
             memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-            printk("Printing out temp contents\n");
+            printf("Printing out temp contents\n");
             for (int i=0; i < 2; i++){
-              printk("%c\n", temp[i]);
+              printf("%c\n", temp[i]);
             } 
             //((uint32_t *)temp)[0] ^= *kernelKey;
             xtea_dec((temp), kernelKey);
@@ -513,40 +493,52 @@ SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
             i += (8 * sizeof(unsigned char));
         }while(i < newLen);
 
-        kfree(temp);
+        free(temp);
 
-        printk("::::::::::::::::::::::::::::\n");
+        printf("::::::::::::::::::::::::::::\n");
         for (int i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
+            printf("%d\n", kernelMsg[i]);
         }
 
         copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
+
         //memcpy( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
 
         // for (int i=0; i<adjustedLen; i++) {
         //   msg[i] = kernelMsg[i];
         // }
 
-        kfree(kernelMsg);
+        free(kernelMsg);
       }
     
-      kfree(kernelKey);
+      free(kernelKey);
 
       //remove message from mbox
-      kfree(firstMsg->msg);
-      list_del(&firstMsg->list_node);
-      kfree(firstMsg);
-
-      printk("%lu\n", adjustedLen);
+      if (delete == 1){
+        free(firstMsg->msg);
+        list_del(&firstMsg->list_node);
+        free(firstMsg);
+      }
+      printf("%lu\n", adjustedLen);
       for (int i = 0 ; i < adjustedLen ; i++ ){
-        printk("%d\n", msg[i]);
+        printf("%d\n", msg[i]);
       }
       //kfree(s);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
   }
-  printk("Mailbox with ID: %lu does not exist\n", id);
-  return -ENOENT;
+  printf("Mailbox with ID: %lu does not exist\n", id);
+  return ENOENT; 
+}
+
+/* 
+Copies up to n characters from the next message in the mailbox id to the user-space buffer msg, decrypting with 
+the specified key, and removes the entire message from the mailbox (even if only part of the message is copied out).
+Returns the number of bytes successfully copied (which shall be the minimum of the length of the message that is stored and n) 
+n success or an appropriate error code on failure.
+*/
+SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+  return receive(1, id, msg, n, key);
 }
 
 
@@ -554,115 +546,7 @@ SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
    removing the message from the mailbox.
  */
 SYSCALL_DEFINE6(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
-  if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
-    return -EFAULT;
-
-  if (!access_ok(VERIFY_WRITE, msg, n*sizeof(unsigned char))) return -EFAULT;
-
-  long adjustedLen = n;
-  long messageLen = len_msg_421(id);
-  if(n > messageLen){
-    adjustedLen = messageLen;
-  }
-
-  //loop mboxes
-  struct list_head *currBox;
-  list_for_each(currBox, &mailBoxes) { //find mbox id
-    mbox_t* pos = NULL;
-    pos = list_entry(currBox, mbox_t, list_node);    
-
-    if (pos->boxId == id) {
-      if (list_empty(&pos->msgs)) { //check if empty
-        printk("No message in mailbox with ID: %lu\n", id);
-        return -ENOENT; //return error if no messages
-      }
-      //otherwise find the first message
-      msgNode_t* firstMsg = list_first_entry(&pos->msgs, msgNode_t, list_node);
-
-      unsigned char *kernelMsg;
-      unsigned int count = 0;
-
-      //kmalloc
-      uint32_t *kernelKey; 
-
-      if (pos -> encryption == 0) {
-        //XOR Cipher
-        if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (sizeof(key));
-        copy_from_user( &kernelKey[0], &key[0], sizeof(key));
-        //memcpy (&kernelKey[0], &key[0], sizeof(key));
-        xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
-      }
-      else{
-        //XTEA Cipher
-        if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t));
-        for (int i = 0; i < 4; i++){
-          copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
-          //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
-        }
-
-        int BLOCK_SIZE = 8;
-        long padding;
-
-         if (adjustedLen < BLOCK_SIZE){
-            padding = BLOCK_SIZE - adjustedLen;
-         }
-         else{
-            padding = adjustedLen % BLOCK_SIZE;
-         }
-        int newLen = adjustedLen + padding;
-
-        //In kernel code we need to copy to kernel memory
-        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
-        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char));
-        memcpy (&kernelMsg[0], &(firstMsg->msg)[0], sizeof(firstMsg->msg));
-
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-
-        for (int i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
-        }
-
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-
-        int i = 0;
-
-        do{
-            printk("Second one, i is equal to: %d\n", i);
-
-            memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-            memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-            //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_dec(((uint32_t *)temp), kernelKey);
-            memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
-            i += (8 * sizeof(unsigned char));
-        }while(i < newLen);
-
-        kfree(temp);
-
-        copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
-        //memcpy( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
-
-        // for (int i=0; i<adjustedLen; i++) {
-        //   msg[i] = kernelMsg[i];
-        // }
-
-        kfree(kernelMsg);
-      }
-    
-      kfree(kernelKey);
-
-      printk("%lu\n", adjustedLen);
-      for (int i = 0 ; i < adjustedLen ; i++ ){
-        printk("%d\n", msg[i]);
-      }
-      //kfree(s);      
-      return (adjustedLen); //return minimum(n, len(msg @ id))
-    }
-  }
-  printk("Mailbox with ID: %lu does not exist\n", id);
-  return -ENOENT;
+  return receive(0, id, msg, n, key);
 }
 
 

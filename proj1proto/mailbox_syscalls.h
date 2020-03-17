@@ -37,6 +37,8 @@ static long xorCrypt(unsigned char **boxMsg, unsigned char *kernelMsg, unsigned 
 static long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey);
 static void xtea_enc(uint32_t *v, uint32_t const key[4]);
 static void xtea_dec(uint32_t *v, uint32_t const key[4]);
+static long receive(int delete, unsigned long id, unsigned char * msg, long n, uint32_t * key);
+
 
 long create_mbox_421(unsigned long id, int crypt_alg);
 
