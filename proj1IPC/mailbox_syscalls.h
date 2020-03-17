@@ -5,14 +5,14 @@
 #include <linux/syscalls.h>
 #include "list.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdlib.h>
  //#include <linux/syscalls.h>
-#include <stdint.h>
+//#include <stdint.h>
  //#include <linux/cred.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h> 
+//#include <unistd.h>
+//#include <errno.h>
+//#include <string.h> 
 
 typedef struct msgNode {
   unsigned char * msg;

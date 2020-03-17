@@ -357,7 +357,15 @@
 433	common	fspick			__x64_sys_fspick
 434	common	pidfd_open		__x64_sys_pidfd_open
 435	common	clone3			__x64_sys_clone3/ptregs
-
+436 	common 	create_mbox_421		__x64_sys_create_mbox_421
+437	common	remove_mbox_421		__x64_sys_remove_mbox_421
+438	common	count_mbox_421		__x64_sys_count_mbox_421
+439	common	list_mbox_421		__x64_sys_list_mbox_421
+440	common	send_msg_421		__x64_sys_send_msg_421
+441	common	recv_msg_421		__x64_sys_recv_msg_421
+442	common	peek_msg_421		__x64_sys_peek_msg_421
+443	common	count_msg_421		__x64_sys_count_msg_421
+444	common	len_msg_421		__x64_sys_len_msg_421
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
 # for native 64-bit operation. The __x32_compat_sys stubs are created

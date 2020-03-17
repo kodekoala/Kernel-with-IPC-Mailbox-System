@@ -1419,4 +1419,15 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
 			    const struct old_timespec32 __user *timeout);
 
+
+asmlinkage long sys_create_mbox_421(unsigned long id, int crypt_alg);
+asmlinkage long sys_remove_mbox_421(unsigned long id);
+asmlinkage long sys_count_mbox_421(void);
+asmlinkage long sys_list_mbox_421(unsigned long __user *mbxes, long k);
+asmlinkage long sys_send_msg_421(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key);
+asmlinkage long sys_recv_msg_421(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key);
+asmlinkage long sys_peek_msg_421(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key);
+asmlinkage long sys_count_msg_421(unsigned long id);
+asmlinkage long sys_len_msg_421(unsigned long id);
+
 #endif
