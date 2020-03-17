@@ -29,7 +29,7 @@ returns 0. If the crypt_alg parameter is 0, the mailbox's messages shall
 be encrypted with the XOR cipher described above. Otherwise, the messages 
 shall be encrypted with the XTEA algorithm.
  */
-SYSCALL_DEFINE5(create_mbox_421, unsigned long, id, int, crypt_alg){
+SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
 
   kuid_t rootUid;
   rootUid.val = 0;
@@ -76,7 +76,7 @@ SYSCALL_DEFINE5(create_mbox_421, unsigned long, id, int, crypt_alg){
    If the mailbox is not empty, this system call shall return
    an appropriate error and not remove the mailbox.
  */
-SYSCALL_DEFINE3(remove_mbox_421, unsigned long, id){
+SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
 
   kuid_t rootUid;
   rootUid.val = 0;
@@ -119,7 +119,7 @@ Returns a list of up to k mailbox IDs in the user-space variable mbxes.
 It returns the number of IDs written successfully to mbxes on success 
 and an appropriate error code on failure.
 */
-SYSCALL_DEFINE5(list_mbox_421, unsigned long __user *, mbxes, long, k) {
+SYSCALL_DEFINE2(list_mbox_421, unsigned long __user *, mbxes, long, k) {
 
   //check if passed in pointer is valid
   if (mbxes == NULL || k < 0)
@@ -151,7 +151,7 @@ SYSCALL_DEFINE5(list_mbox_421, unsigned long __user *, mbxes, long, k) {
 
 /* returns the number of existing mailboxes.
  */
-SYSCALL_DEFINE2(count_mbox_421, void) {
+SYSCALL_DEFINE0(count_mbox_421, void) {
   return mailboxCount;
 }
 
@@ -162,7 +162,7 @@ length n) on success, and an appropriate error code on failure. Messages with ne
 shall be rejected as invalid and cause an appropriate error to be returned, however messages 
 with a length of zero shall be accepted as valid.
  */
-SYSCALL_DEFINE9(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
@@ -578,7 +578,7 @@ the specified key, and removes the entire message from the mailbox (even if only
 Returns the number of bytes successfully copied (which shall be the minimum of the length of the message that is stored and n) 
 n success or an appropriate error code on failure.
 */
-SYSCALL_DEFINE9(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE4(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
   return receive(1, id, msg, n, key);
 }
 
@@ -586,7 +586,7 @@ SYSCALL_DEFINE9(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 /* performs the same operation as recv_msg_421() without
    removing the message from the mailbox.
  */
-SYSCALL_DEFINE9(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE4(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
   return receive(0, id, msg, n, key);
 }
 
@@ -594,7 +594,7 @@ SYSCALL_DEFINE9(peek_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 /* Returns the number of messages in the mailbox id on
    success or an appropriate error code on failure.
  */
-SYSCALL_DEFINE3(count_msg_421, unsigned long, id) {
+SYSCALL_DEFINE1(count_msg_421, unsigned long, id) {
   
   long count = 0;
   struct list_head * currBox;
@@ -631,7 +631,7 @@ SYSCALL_DEFINE3(count_msg_421, unsigned long, id) {
    are no messages in the mailbox, this shall return an appropriate
    error value.
  */
-SYSCALL_DEFINE3(len_msg_421, unsigned long, id) {
+SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
   
   struct list_head * currBox;
 
