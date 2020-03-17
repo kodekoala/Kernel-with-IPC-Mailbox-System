@@ -8,7 +8,9 @@ shall be encrypted with the XTEA algorithm.
  */
 SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
 
-  if (current_euid() != 0) {
+  kuid_t rootUid;
+  rootUid.val = 0;
+  if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
     return -EPERM;
@@ -53,7 +55,9 @@ SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
  */
 SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
 
-  if (current_euid() != 0) {
+  kuid_t rootUid;
+  rootUid.val = 0;
+  if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
     return -EPERM;
