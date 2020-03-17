@@ -438,7 +438,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       if (pos -> encryption == 0) {
         //XOR Cipher
         //if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) malloc (sizeof(key));
+        kernelKey = (uint32_t *) kmalloc (sizeof(key));
         copy_from_user( &kernelKey[0], &key[0], sizeof(key));
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
@@ -446,7 +446,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       else{
         //XTEA Cipher
         //if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) malloc (4 * sizeof(uint32_t));
+        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t));
         for (int i = 0; i < 4; i++){
           copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -464,8 +464,8 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
         int newLen = adjustedLen + padding;
 
         //In kernel code we need to copy to kernel memory
-        kernelMsg = (unsigned char *) malloc (newLen*sizeof(unsigned char));
-        uint32_t *temp = (uint32_t *) malloc (8*sizeof(unsigned char));
+        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
+        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char));
         memcpy (&kernelMsg[0], &(firstMsg->msg)[0], newLen*sizeof(unsigned char));
 
         printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
@@ -493,7 +493,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
             i += (8 * sizeof(unsigned char));
         }while(i < newLen);
 
-        free(temp);
+        kfree(temp);
 
         printf("::::::::::::::::::::::::::::\n");
         for (int i = 0 ; i < newLen ; i++ ){
@@ -508,16 +508,16 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
         //   msg[i] = kernelMsg[i];
         // }
 
-        free(kernelMsg);
+        kfree(kernelMsg);
       }
     
-      free(kernelKey);
+      kfree(kernelKey);
 
       //remove message from mbox
       if (delete == 1){
-        free(firstMsg->msg);
+        kfree(firstMsg->msg);
         list_del(&firstMsg->list_node);
-        free(firstMsg);
+        kfree(firstMsg);
       }
       printf("%lu\n", adjustedLen);
       for (int i = 0 ; i < adjustedLen ; i++ ){
