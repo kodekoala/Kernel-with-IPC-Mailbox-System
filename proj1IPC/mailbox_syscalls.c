@@ -1,5 +1,28 @@
 #include "mailbox_syscalls.h"
 
+typedef struct msgNode {
+  unsigned char * msg;
+  long msgLen;
+  struct list_head list_node;
+}
+msgNode_t;
+
+typedef struct mbox {
+  unsigned long boxId;
+  int encryption;
+  // link mbox together in the mboxes list
+  struct list_head list_node;
+  // Each mbox can have their own list of msgs
+  struct list_head msgs;
+  // Each mbox can have their own acl
+  struct list_head ACL;
+}
+mbox_t;
+
+LIST_HEAD(mailBoxes);
+
+
+
 /*
 creates a new empty mailbox with ID id, if it does not already exist, and 
 returns 0. If the crypt_alg parameter is 0, the mailbox's messages shall 

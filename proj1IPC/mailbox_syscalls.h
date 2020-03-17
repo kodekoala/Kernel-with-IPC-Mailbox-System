@@ -15,27 +15,6 @@
 //#include <errno.h>
 //#include <string.h> 
 
-typedef struct msgNode {
-  unsigned char * msg;
-  long msgLen;
-  struct list_head list_node;
-}
-msgNode_t;
-
-typedef struct mbox {
-  unsigned long boxId;
-  int encryption;
-  // link mbox together in the mboxes list
-  struct list_head list_node;
-  // Each mbox can have their own list of msgs
-  struct list_head msgs;
-  // Each mbox can have their own acl
-  struct list_head ACL;
-}
-mbox_t;
-
-LIST_HEAD(mailBoxes);
-
 static long xorCrypt(unsigned char **boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key);
 static long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey);
 static void xtea_enc(uint32_t *v, uint32_t const key[4]);
