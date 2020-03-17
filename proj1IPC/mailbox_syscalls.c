@@ -8,7 +8,7 @@ shall be encrypted with the XTEA algorithm.
  */
 SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
 
-  if (geteuid() != 0) {
+  if (current_euid() != 0) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
     return -EPERM;
@@ -34,7 +34,7 @@ SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
   }
 
   //if the mailbox doesn't exist, create new mailbox
-  mbox_t * new_mbox = (mbox_t * ) kmalloc(sizeof(mbox_t));
+  mbox_t * new_mbox = (mbox_t * ) kmalloc(sizeof(mbox_t), GFP_KERNEL);
   INIT_LIST_HEAD( & new_mbox -> msgs);
   new_mbox -> boxId = id;
   new_mbox -> encryption = crypt_alg;
@@ -53,7 +53,7 @@ SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
  */
 SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
 
-  if (geteuid() != 0) {
+  if (current_euid() != 0) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
     return -EPERM;
@@ -154,7 +154,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       long newLen;
 
       //kmalloc
-      msgNode_t * msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t));
+      msgNode_t * msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t), GFP_KERNEL);
       if(!msgNode){
         fprintf(stderr, "Allocation Error\n");
         return -ENOMEM;
@@ -167,7 +167,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       if (box -> encryption == 0) {
         //XOR Cipher
         if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (sizeof(key));
+        kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         copy_from_user( &kernelKey[0], &key[0], sizeof(key));
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         newLen = xorCrypt(&(msgNode->msg), kernelMsg, msg, n, kernelKey);
@@ -179,7 +179,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       else{
         //XTEA Cipher
         if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t));
+        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (int i = 0; i < 4; i++){
           copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -198,15 +198,15 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         printk("Newlen is: %ld\n", newLen);
 
 
-        msgNode->msg = (unsigned char *)kmalloc(newLen*sizeof(unsigned char*));
+        msgNode->msg = (unsigned char *)kmalloc(newLen*sizeof(unsigned char*), GFP_KERNEL);
         if(!msgNode->msg){
           fprintf(stderr, "Allocation Error\n");
           return --ENOMEM;
         }
 
         //In kernel code we need to copy to kernel memory
-        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
-        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char));
+        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
+        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char));
         //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
         for (int i = n; i < newLen; i++){
@@ -282,11 +282,11 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
     }
   long newLen = n + padding;
 
-  *boxMsg = (unsigned char *)kmalloc(n*sizeof(unsigned char*));
+  *boxMsg = (unsigned char *)kmalloc(n*sizeof(unsigned char*), GFP_KERNEL);
 
   //In kernel code we need to copy to kernel memory
-  kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
-  unsigned char *temp = (unsigned char *) kmalloc (4*sizeof(unsigned char));
+  kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
+  unsigned char *temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
   copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char));
   //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
@@ -332,14 +332,14 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
   long newLen = n + padding;
 
   //In kernel code we need to copy to kernel memory
-  kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
+  kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
   memcpy( &kernelMsg[0], &boxMsg[0], n * sizeof(unsigned char));
 
   for (int i = n; i < newLen; i++){
     kernelMsg[i] = 0x00;
   }
 
-  unsigned char *temp = (unsigned char *) kmalloc (4*sizeof(unsigned char));
+  unsigned char *temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
   // This assumes that data is aligned on a 4-byte boundary
   for(int i = 0; i + 3 < newLen; i += 4*sizeof(unsigned char)){
@@ -438,7 +438,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       if (pos -> encryption == 0) {
         //XOR Cipher
         //if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (sizeof(key));
+        kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         copy_from_user( &kernelKey[0], &key[0], sizeof(key));
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
@@ -446,7 +446,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       else{
         //XTEA Cipher
         //if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t));
+        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t, GFP_KERNEL);
         for (int i = 0; i < 4; i++){
           copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -464,8 +464,8 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
         int newLen = adjustedLen + padding;
 
         //In kernel code we need to copy to kernel memory
-        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char));
-        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char));
+        kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
+        uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         memcpy (&kernelMsg[0], &(firstMsg->msg)[0], newLen*sizeof(unsigned char));
 
         printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");

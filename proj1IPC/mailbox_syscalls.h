@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include "list.h"
+#include <linux/cred.h>
 
 //#include <stdio.h>
 //#include <stdlib.h>
