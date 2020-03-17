@@ -1,42 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <linux/kernel.h>
- //#include <linux/syscalls.h>
-#include <stdint.h>
- //#include <linux/cred.h>
-#include <unistd.h>
-#include <errno.h>
-#include "list.h"
-#include <string.h> 
-
-long xorCrypt(unsigned char **boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key);
-long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey);
-static void xtea_enc(uint32_t *v, uint32_t const key[4]);
-static void xtea_dec(uint32_t *v, uint32_t const key[4]);
-long len_msg_421(unsigned long id);
-
-typedef struct msgNode {
-  unsigned char * msg;
-  long msgLen;
-  struct list_head list_node;
-}
-msgNode_t;
-
-typedef struct mbox {
-  unsigned long boxId;
-  int encryption;
-  // link mbox together in the mboxes list
-  struct list_head list_node;
-  // Each mbox can have their own list of msgs
-  struct list_head msgs;
-  // Each mbox can have their own acl
-  struct list_head ACL;
-}
-mbox_t;
-
-LIST_HEAD(mailBoxes);
-
-static unsigned int mailboxCount = 0;
+#include "mailbox_syscalls.h"
 
 /*
 creates a new empty mailbox with ID id, if it does not already exist, and 
@@ -314,7 +276,7 @@ long send_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key)
 }
 
 
-long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey){
+static long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * kernelKey){
   int BLOCK_SIZE = 4;
   int padding;
   if (n < BLOCK_SIZE){
@@ -363,7 +325,7 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   // }
 }
 
-long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key){
+static long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char * msg, long n, uint32_t * key){
   int BLOCK_SIZE = 4;
   int padding;
   if (n < BLOCK_SIZE){
@@ -451,7 +413,7 @@ Returns the number of bytes successfully copied (which shall be the minimum of t
 n success or an appropriate error code on failure.
 */
 //SYSCALL_DEFINE7(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {}
-static long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
+long recv_msg_421(unsigned long id, unsigned char * msg, long n, uint32_t * key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
