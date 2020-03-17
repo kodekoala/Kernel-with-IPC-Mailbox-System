@@ -6,7 +6,7 @@ returns 0. If the crypt_alg parameter is 0, the mailbox's messages shall
 be encrypted with the XOR cipher described above. Otherwise, the messages 
 shall be encrypted with the XTEA algorithm.
  */
-SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
+SYSCALL_DEFINE5(create_mbox_421, unsigned long, id, int, crypt_alg){
 
   kuid_t rootUid;
   rootUid.val = 0;
@@ -53,7 +53,7 @@ SYSCALL_DEFINE0(create_mbox_421, unsigned long, id, int, crypt_alg){
    If the mailbox is not empty, this system call shall return
    an appropriate error and not remove the mailbox.
  */
-SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
+SYSCALL_DEFINE3(remove_mbox_421, unsigned long, id){
 
   kuid_t rootUid;
   rootUid.val = 0;
@@ -96,7 +96,7 @@ Returns a list of up to k mailbox IDs in the user-space variable mbxes.
 It returns the number of IDs written successfully to mbxes on success 
 and an appropriate error code on failure.
 */
-SYSCALL_DEFINE3(list_mbox_421, unsigned long __user *, mbxes, long, k) {
+SYSCALL_DEFINE5(list_mbox_421, unsigned long __user *, mbxes, long, k) {
 
   //check if passed in pointer is valid
   if (mbxes == NULL || k < 0)
@@ -139,7 +139,7 @@ length n) on success, and an appropriate error code on failure. Messages with ne
 shall be rejected as invalid and cause an appropriate error to be returned, however messages 
 with a length of zero shall be accepted as valid.
  */
-SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE9(send_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
 
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
@@ -172,7 +172,9 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         //XOR Cipher
         if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
-        copy_from_user( &kernelKey[0], &key[0], sizeof(key));
+        if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
+          return -EFAULT;
+        }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         newLen = xorCrypt(&(msgNode->msg), kernelMsg, msg, n, kernelKey);
         for (int i = 0 ; i < n ; i++ ){
@@ -185,7 +187,9 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (int i = 0; i < 4; i++){
-          copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
+          if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
+            return -EFAULT;
+          }
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
         }
         int BLOCK_SIZE = 8;
@@ -211,7 +215,9 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         //In kernel code we need to copy to kernel memory
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
         uint32_t *temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
-        copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char));
+        if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
+          return -EFAULT;
+        }
         //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
         for (int i = n; i < newLen; i++){
             kernelMsg[i] = 0x00;
@@ -292,7 +298,9 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
   unsigned char *temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
-  copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char));
+  if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
+    return -EFAULT;
+  }
   //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
   for (int i = n; i < newLen; i++){
       kernelMsg[i] = 0x00;
@@ -359,7 +367,9 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
 
   kfree(temp);
 
-  copy_to_user( &msg[0], &kernelMsg[0], n * sizeof(unsigned char));
+  if(!copy_to_user( &msg[0], &kernelMsg[0], n * sizeof(unsigned char))){
+    return -EFAULT;
+  }
   //memcpy( &msg[0], &kernelMsg[0], n * sizeof(unsigned char));
 
   // for (int i=0; i<n; i++) {
@@ -443,20 +453,23 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
         //XOR Cipher
         //if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
-        copy_from_user( &kernelKey[0], &key[0], sizeof(key));
+        if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
+          return -EFAULT;
+        }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
       }
       else{
-        //XTEA Cipher
+                //XTEA Cipher
         //if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t, GFP_KERNEL);
+        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t, GFP_KERNEL));
         for (int i = 0; i < 4; i++){
-          copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t));
+          if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
+            return -EFAULT;
+          }
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
         }
-
-        int BLOCK_SIZE = 8;
+                int BLOCK_SIZE = 8;
         long padding;
 
          if (adjustedLen < BLOCK_SIZE){
@@ -504,7 +517,9 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
             printf("%d\n", kernelMsg[i]);
         }
 
-        copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
+        if(!copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char))){
+          return -EFAULT;
+        }
 
         //memcpy( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char));
 
@@ -530,7 +545,6 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       //kfree(s);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
-  }
   printf("Mailbox with ID: %lu does not exist\n", id);
   return ENOENT; 
 }
@@ -541,7 +555,7 @@ the specified key, and removes the entire message from the mailbox (even if only
 Returns the number of bytes successfully copied (which shall be the minimum of the length of the message that is stored and n) 
 n success or an appropriate error code on failure.
 */
-SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE9(recv_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
   return receive(1, id, msg, n, key);
 }
 
@@ -549,7 +563,7 @@ SYSCALL_DEFINE5(recv_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 /* performs the same operation as recv_msg_421() without
    removing the message from the mailbox.
  */
-SYSCALL_DEFINE6(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
+SYSCALL_DEFINE9(peek_msg_421, unsigned long, id, unsigned char __user *, msg, long, n, uint32_t __user *, key) {
   return receive(0, id, msg, n, key);
 }
 
@@ -557,7 +571,7 @@ SYSCALL_DEFINE6(peek_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 /* Returns the number of messages in the mailbox id on
    success or an appropriate error code on failure.
  */
-SYSCALL_DEFINE7(count_msg_421, unsigned long, id) {
+SYSCALL_DEFINE3(count_msg_421, unsigned long, id) {
   
   long count = 0;
   struct list_head * currBox;
@@ -594,7 +608,7 @@ SYSCALL_DEFINE7(count_msg_421, unsigned long, id) {
    are no messages in the mailbox, this shall return an appropriate
    error value.
  */
-SYSCALL_DEFINE8(len_msg_421, unsigned long, id) {
+SYSCALL_DEFINE3(len_msg_421, unsigned long, id) {
   
   struct list_head * currBox;
 
