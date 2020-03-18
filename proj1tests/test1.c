@@ -8,17 +8,17 @@
 #define __NR_create_mbox_421 436
 
 long create_box(unsigned long id, int crypt_alg) {
-    return syscall(__NR_create_box(id, crypt_alg));
+    return syscall(__NR_create_mbox_421(id, crypt_alg));
 }
 
 int main(int argc, char *argv[]) {
     long rv;
     unsigned long i, num;
   	long k = 5;
-  	unsigned long * mbxes = (unsigned long * ) kmalloc(sizeof(unsigned long) * k);;
+  	//unsigned long * mbxes = (unsigned long * ) kmalloc(sizeof(unsigned long) * k);;
   	num = 50;
   	for (i = 0; i < 5; i++){
-  		rv = create_mbox_421(num+i, 0);
+  		rv = create_box(num+i, 0);
   		if (rv != 0){
   			printf("Error occured in creating box with ID: %ld\n", num+i);
   		}
