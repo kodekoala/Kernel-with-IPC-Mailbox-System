@@ -30,11 +30,11 @@ be encrypted with the XOR cipher described above. Otherwise, the messages
 shall be encrypted with the XTEA algorithm.
  */
 SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
-  mbox_t * pos = NULL;
-  kuid_t rootUid;
-  rootUid.val = 0;
   mbox_t * new_mbox;
+  kuid_t rootUid;
   struct list_head * currBox;
+  mbox_t * pos = NULL;
+  rootUid.val = 0;
 
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
@@ -80,10 +80,11 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
 SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
 
   kuid_t rootUid;
-  rootUid.val = 0;
-  struct list_head * currBox = NULL;
   struct list_head * tmp;
+  struct list_head * currBox = NULL;
   mbox_t * box = NULL;
+  rootUid.val = 0;
+
 
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
@@ -154,7 +155,7 @@ SYSCALL_DEFINE2(list_mbox_421, unsigned long __user *, mbxes, long, k) {
 
 /* returns the number of existing mailboxes.
  */
-SYSCALL_DEFINE0(count_mbox_421, void) {
+SYSCALL_DEFINE0(count_mbox_421) {
   return mailboxCount;
 }
 
@@ -463,13 +464,13 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
 
   //loop mboxes
   list_for_each(currBox, &mailBoxes) { //find mbox id
+    int i;
     msgNode_t* firstMsg;
     long messageLen;
     unsigned char *kernelMsg;
     uint32_t *kernelKey; 
     pos = NULL;
     pos = list_entry(currBox, mbox_t, list_node);    
-    int i;
 
     if (pos->boxId == id) {
       if (list_empty(&pos->msgs)) { //check if empty
@@ -503,7 +504,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         int newLen;
         uint32_t *temp;
         if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
-        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t, GFP_KERNEL));
+        kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (i = 0; i < 4; i++){
           if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
             return -EFAULT;
