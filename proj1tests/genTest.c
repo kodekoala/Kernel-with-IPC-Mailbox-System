@@ -27,19 +27,19 @@ long count_box(void) {
     return syscall(__NR_count_mbox_421);
 }
 
-long list_box(unsigned long __user *mbxes, long k) {
+long list_box(unsigned long *mbxes, long k) {
     return syscall(__NR_list_mbox_421, mbxes, k);
 }
 
-long send_msg(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key) {
+long send_msg(unsigned long id, unsigned char *msg, long n, uint32_t *key) {
     return syscall(__NR_send_msg_421, id, msg, n, key);
 }
 
-long recv_msg(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key) {
+long recv_msg(unsigned long id, unsigned char *msg, long n, uint32_t *key) {
     return syscall(__NR_recv_msg_421, id, msg, n, key);
 }
 
-long peek_msg(unsigned long id, unsigned char __user *msg, long n, uint32_t __user *key) {
+long peek_msg(unsigned long id, unsigned char __user *msg, long n, uint32_t *key) {
     return syscall(__NR_peek_msg_421, id, msg, n, key);
 }
 
