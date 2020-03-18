@@ -255,7 +255,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
         //In kernel code we need to copy to kernel memory
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
-        temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
+        //temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         printk("Before msg copy in send_msg_421 for XTEA\n");
         if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
           return -EFAULT;
@@ -278,22 +278,22 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
           // This assumes that data is aligned on a 4-byte boundary
         do{
             printk("i is equal to: %d\n", i);
-            memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-            memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
+            //memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
+            //memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
 
             printk("Printing out temp contents\n");
 
             //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_enc(((uint32_t *)temp), kernelKey);
-            memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
-            i += (8 * sizeof(unsigned char));
+            xtea_enc((uint32_t *)&kernelMsg[i], kernelKey);
+            //memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
+            i += 8;
         }while(i < newLen);
 
         for (i = 0 ; i < newLen ; i++ ){
             printk("%d\n", kernelMsg[i]);
         }
 
-        kfree(temp);
+        //kfree(temp);
 
         for (i=0; i<newLen; i++) {
           msgNode->msg[i] = kernelMsg[i];
@@ -534,7 +534,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
 
         //In kernel code we need to copy to kernel memory
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
-        temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
+        //temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         memcpy (&kernelMsg[0], &(firstMsg->msg)[0], newLen*sizeof(unsigned char));
 
         printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
@@ -548,21 +548,13 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         i = 0;
 
         do{
-            printk("Second one, i is equal to: %d\n", i);
-
-            memcpy(&temp[0], &kernelMsg[i], 8 * sizeof(unsigned char));
-            //memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-            printk("Printing out temp contents\n");
-            for (i=0; i < 2; i++){
-              printk("%c\n", temp[i]);
-            } 
-            //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_dec(((uint32_t *)temp), kernelKey);
-            memcpy( &kernelMsg[i], (&temp[0]), 8 * sizeof(unsigned char));
-            i += (8 * sizeof(unsigned char));
+            //memcpy(&temp[0], &kernelMsg[i], 8 * sizeof(unsigned char));
+            xtea_dec((uint32_t *)&kernelMsg[i], kernelKey);
+            //memcpy( &kernelMsg[i], (&temp[0]), 8 * sizeof(unsigned char));
+            i += 8;
         }while(i < newLen);
 
-        kfree(temp);
+        //kfree(temp);
 
         printk("::::::::::::::::::::::::::::\n");
         for (i = 0 ; i < newLen ; i++ ){
