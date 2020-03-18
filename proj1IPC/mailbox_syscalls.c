@@ -209,7 +209,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         printk("Before key copy in send_msg_421 for XOR\n");
-        if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
+        if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
@@ -229,7 +229,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         
         printk("Before key copy in send_msg_421 for XTEA");
-        if(!copy_from_user( &kernelKey[0], &key[0], (4*sizeof(uint32_t)))){
+        if(copy_from_user( &kernelKey[0], &key[0], (4*sizeof(uint32_t))) != 0){
           return -EFAULT;
         }
         //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -257,7 +257,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
         temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         printk("Before msg copy in send_msg_421 for XTEA\n");
-        if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
+        if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
           return -EFAULT;
         }
         //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
@@ -345,7 +345,7 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
   printk("Before msg copy in send_msg_421 for XOR\n");
-  if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
+  if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
     return -EFAULT;
   }
   //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
@@ -414,7 +414,7 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
 
   kfree(temp);
 
-  if(!copy_to_user( &msg[0], &kernelMsg[0], n * sizeof(unsigned char))){
+  if(copy_to_user( &msg[0], &kernelMsg[0], n * sizeof(unsigned char)) != 0){
     return -EFAULT;
   }
   //memcpy( &msg[0], &kernelMsg[0], n * sizeof(unsigned char));
@@ -503,7 +503,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         //XOR Cipher
         if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
-        if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
+        if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
@@ -518,7 +518,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (i = 0; i < 4; i++){
-          if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
+          if(copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t)) != 0){
             return -EFAULT;
           }
           //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -569,7 +569,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
             printk("%d\n", kernelMsg[i]);
         }
 
-        if(!copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char))){
+        if(copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char)) != 0){
           return -EFAULT;
         }
 
