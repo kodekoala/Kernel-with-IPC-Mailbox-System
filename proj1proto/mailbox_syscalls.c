@@ -371,7 +371,7 @@ static long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigne
   for (int i = 0 ; i < n ; i++ ){
     printf("%d\n", msg[i]);
   }
-  printf("=============================\n");
+  printf("=============================!!!\n");
 
 }
 
@@ -541,6 +541,7 @@ if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
       for (int i = 0 ; i < adjustedLen ; i++ ){
         printf("%d\n", msg[i]);
       }
+      printf("==================================***\n");
       //kfree(s);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
@@ -646,6 +647,36 @@ long len_msg_421(unsigned long id) {
 int main(void) {
   long k = 5;
   unsigned long * mbxes = (unsigned long * ) malloc(sizeof(unsigned long) * k);;
+
+  unsigned char mymsg[6] = { 1, 2, 3, 4, 5, 6 };
+  uint32_t key1[4] = { 1, 2, 3, 4 };
+  create_mbox_421(1, 0);
+  create_mbox_421(2, 1);
+  send_msg_421(1, mymsg, 6, key1);
+  send_msg_421(2, mymsg, 6, key1);
+  printf("=*******************************\n");
+  unsigned char * newmsg = (unsigned char * ) malloc(6 * sizeof(unsigned char));
+  recv_msg_421(1, newmsg, 6, key1);
+  printf("!!!!!!!!!!!!!!!!!!!!!\n");
+
+  for (int i = 0 ; i < 6 ; i++ ){
+    printf("%d\n", newmsg[i]);
+  }
+  printf("=*******************************\n");
+
+  recv_msg_421(2, newmsg, 6, key1);
+  for (int i = 0 ; i < 6 ; i++ ){
+    printf("%d\n", newmsg[i]);
+  }
+  printf("=*******************************\n");
+
+
+  free(newmsg);
+
+  remove_mbox_421(1);
+  remove_mbox_421(2);
+
+
   create_mbox_421(50, 0);
   create_mbox_421(51, 0);
   create_mbox_421(52, 0);
