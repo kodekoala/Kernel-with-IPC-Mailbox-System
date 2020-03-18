@@ -8,7 +8,7 @@
 #define __NR_create_mbox_421 436
 
 long create_box(unsigned long id, int crypt_alg) {
-    return syscall(__NR_create_mbox_421(id, crypt_alg));
+    return syscall(__NR_create_mbox_421, id, crypt_alg);
 }
 
 int main(int argc, char *argv[]) {
@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
   	num = 50;
   	for (i = 0; i < 5; i++){
   		rv = create_box(num+i, 0);
-  		if (rv != 0){
+  		if (rv < 0){
   			printf("Error occured in creating box with ID: %ld\n", num+i);
   		}
   		else {
