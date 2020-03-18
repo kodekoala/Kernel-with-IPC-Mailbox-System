@@ -229,7 +229,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         
         printk("Before key copy in send_msg_421 for XTEA");
-        if(!copy_from_user( &kernelKey[i], &key[i], (4*sizeof(uint32_t)))){
+        if(!copy_from_user( &kernelKey[0], &key[0], (4*sizeof(uint32_t)))){
           return -EFAULT;
         }
         //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
