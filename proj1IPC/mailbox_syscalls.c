@@ -179,6 +179,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
   if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
 
+  printk("After msg copy in send_msg_421");
 
   list_for_each(currBox, &mailBoxes) { //loop mailboxes
     box = NULL;
@@ -226,13 +227,14 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         printk("Before key check in send_msg_421 for XTEA\n");
         if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
-        for (i = 0; i < 4; i++){
-          printk("Before key copy in send_msg_421 for XTEA, iteration is: %ld\n", i);
-          if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
-            return -EFAULT;
-          }
-          //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+        
+        printk("Before key copy in send_msg_421 for XTEA");
+        if(!copy_from_user( &kernelKey[i], &key[i], (4*sizeof(uint32_t)))){
+          return -EFAULT;
         }
+        //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+        printk("After key copy in send_msg_421 for XTEA");
+
 
          if (n < blockSize){
             padding = blockSize - n;
