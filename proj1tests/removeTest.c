@@ -20,10 +20,10 @@ int main(int argc, char *argv[]) {
   	for (i = 0; i < 5; i++){
   		rv = remove_box(num+i);
   		if (rv < 0){
-  			printf("Error occured in creating box with ID: %ld\n", num+i);
+  			printf("Error occured in removing box with ID: %ld\n", num+i);
   		}
   		else {
-        printf("Box with ID: %ld removed successfully, check logs (dmseg)\n");
+        printf("Box with ID: %ld removed successfully, check logs (dmseg)\n", num + i);
     	}
   	}
 
