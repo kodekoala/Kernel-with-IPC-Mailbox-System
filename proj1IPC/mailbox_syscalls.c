@@ -240,7 +240,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
             padding = blockSize - n;
          }
          else{
-            padding = blockSize - (n % blockSize);
+            padding = (blockSize * int(n/blockSize) + blockSize) - n;   
             printk("Padding is: %ld\n", padding);
          }
         newLen = n + padding;
@@ -334,7 +334,7 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
       padding = blockSize - n;
   }
   else{
-      padding = blockSize - (n % blockSize);   
+      padding = (blockSize * int(n/blockSize) + blockSize) - n;   
   }
   newLen = n + padding;
 
@@ -385,7 +385,7 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
       padding = blockSize - n;
    }
    else{
-      padding = blockSize - (n % blockSize);   
+      padding = (blockSize * int(n/blockSize) + blockSize) - n;   
    }
   newLen = n + padding;
 
@@ -517,18 +517,18 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         uint32_t *temp;
         if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
-        for (i = 0; i < 4; i++){
-          if(copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t)) != 0){
-            return -EFAULT;
-          }
-          //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+
+        if(copy_from_user( &kernelKey[0], &key[0], 4*sizeof(uint32_t)) != 0){
+          return -EFAULT;
         }
+        //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
+        
 
          if (adjustedLen < blockSize){
             padding = blockSize - adjustedLen;
          }
          else{
-            padding = blockSize - (adjustedLen % BLOCK_SIZE);
+            padding = (blockSize * int(adjustedLen/blockSize) + blockSize) - adjustedLen;   
          }
         newLen = adjustedLen + padding;
 
@@ -550,14 +550,14 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         do{
             printk("Second one, i is equal to: %d\n", i);
 
-            memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-            memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
+            memcpy(&temp[0], &kernelMsg[i], 8 * sizeof(unsigned char));
+            //memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
             printk("Printing out temp contents\n");
             for (i=0; i < 2; i++){
               printk("%c\n", temp[i]);
             } 
             //((uint32_t *)temp)[0] ^= *kernelKey;
-            xtea_dec((temp), kernelKey);
+            xtea_dec(((uint32_t *)temp), kernelKey);
             memcpy( &kernelMsg[i], (&temp[0]), 8 * sizeof(unsigned char));
             i += (8 * sizeof(unsigned char));
         }while(i < newLen);
