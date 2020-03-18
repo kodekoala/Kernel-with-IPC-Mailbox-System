@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -39,7 +41,7 @@ long recv_msg(unsigned long id, unsigned char *msg, long n, uint32_t *key) {
     return syscall(__NR_recv_msg_421, id, msg, n, key);
 }
 
-long peek_msg(unsigned long id, unsigned char __user *msg, long n, uint32_t *key) {
+long peek_msg(unsigned long id, unsigned char *msg, long n, uint32_t *key) {
     return syscall(__NR_peek_msg_421, id, msg, n, key);
 }
 
@@ -85,11 +87,11 @@ int main(void) {
 
     unsigned char * usrmsg = (unsigned char * ) malloc(9 * sizeof(unsigned char));
 
-    send_msg(50, msg1, 6, key);
+    send_msg(50, msg1, 6, keyarr);
 
-    send_msg(50, msg1, 6, key);
+    send_msg(50, msg1, 6, keyarr);
 
-    send_msg(51, msg0, 6, key);
+    send_msg(51, msg0, 6, keyarr);
 
     printf("Number of messages in mbox with ID 50: %lu\n", count_msg(50));
 
