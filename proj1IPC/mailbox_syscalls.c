@@ -170,8 +170,12 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
   struct list_head * currBox;
   mbox_t * box = NULL;
 
+  printk("Before null check in send_msg_421\n");
+
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
+
+  printk("Before msg check in send_msg_421\n");
 
   if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
 
@@ -200,8 +204,10 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
       if (box -> encryption == 0) {
         //XOR Cipher
+        printk("Before key check in send_msg_421 for XOR\n");
         if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
+        printk("Before key copy in send_msg_421 for XOR\n");
         if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
           return -EFAULT;
         }
@@ -217,9 +223,11 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         int blockSize = 8;
         long padding;
         uint32_t *temp;
+        printk("Before key check in send_msg_421 for XTEA\n");
         if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (i = 0; i < 4; i++){
+          printk("Before key copy in send_msg_421 for XTEA, iteration is: %ld\n", i);
           if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
             return -EFAULT;
           }
@@ -246,6 +254,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         //In kernel code we need to copy to kernel memory
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
         temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
+        printk("Before msg copy in send_msg_421 for XTEA\n");
         if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
           return -EFAULT;
         }
@@ -333,6 +342,7 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
   temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
+  printk("Before msg copy in send_msg_421 for XOR\n");
   if(!copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char))){
     return -EFAULT;
   }
@@ -673,75 +683,3 @@ SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
   return -ENOENT;
 }
 
-// int main(void) {
-//   long k = 5;
-//   unsigned long * mbxes = (unsigned long * ) kmalloc(sizeof(unsigned long) * k);;
-//   create_mbox_421(50, 0);
-//   create_mbox_421(51, 0);
-//   create_mbox_421(52, 0);
-//   create_mbox_421(53, 0);
-//   create_mbox_421(54, 0);
-//   printk("=============================\n");
-//   printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
-
-//   //uint32_t keyarr[] = {0x0000, 0x0000, 0x1BAD, 0xC0DE};
-//   uint32_t keyarr = 0x1BADC0DE;
-//   uint32_t * key = &keyarr;
-
-//   unsigned char theMsg[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x12, 0x34, 0xBE, 0xEF, 0x12};
-//   //unsigned char theMsg[] = {'A', 'B', 'C', 'D', 'E', 'F'};
-
-//   //unsigned char theMsg[] = {0x12, 0x34};
-
-//   unsigned char * msg = theMsg;
-
-//   unsigned char * usrmsg = (unsigned char * ) kmalloc(9 * sizeof(unsigned char));
-
-//   send_msg_421(50, msg, 9, key);
-//   printk("=============================\n");
-//   printk("There are currently %lu messages in box with ID 50\n", count_msg_421(50));
-//   printk("=============================\n");
-//   peek_msg_421(50, usrmsg, 9, key);
-//   for (int i = 0 ; i < 9 ; i++ ){
-//     printk("%d\n", usrmsg[i]);
-//   }
-//   printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-
-//   recv_msg_421(50, usrmsg, 9, key);
-//   printk("-------------------------------------\n");
-
-//   // for (int i = 0; i < 6; i++){
-//   //   printk("%d\n", usrmsg[i]);   // unsigned long
-//   //   i++;
-//   // }
-
-//   for (int i = 0 ; i < 9 ; i++ ){
-//     printk("%d\n", usrmsg[i]);
-//   }
-
-//   kfree(usrmsg);
-//   printk("=============================\n");
-//   printk("Number of messages in box with ID 50: %lu\n", count_msg_421(50));   // unsigned long
-
-//   list_mbox_421(mbxes, k);
-//   remove_mbox_421(50);
-//   remove_mbox_421(51);
-//   remove_mbox_421(52);
-//   remove_mbox_421(53);
-//   remove_mbox_421(54);
-//   printk("=============================\n");
-
-//   printk("Number of mailboxes: %lu\n", count_mbox_421());   // unsigned long
-
-//   printk("=============================\n");
-
-//   long i = 0;
-//   while (i < k){
-//     printk("ID: %lu\n", mbxes[i]);   // unsigned long
-//     i++;
-//   }
-
-//   kfree(mbxes);
-
-//   return 0;
-// }
