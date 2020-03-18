@@ -579,9 +579,11 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
       //kfree(s);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
+  }
   printk("Mailbox with ID: %lu does not exist\n", id);
   return ENOENT; 
 }
+
 
 /* 
 Copies up to n characters from the next message in the mailbox id to the user-space buffer msg, decrypting with 
