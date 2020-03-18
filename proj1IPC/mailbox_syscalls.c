@@ -137,7 +137,7 @@ SYSCALL_DEFINE2(list_mbox_421, unsigned long __user *, mbxes, long, k) {
     count = mailboxCount;
   }
 
-  if (!access_ok(VERIFY_WRITE, mbxes, count*sizeof(unsigned long))) return -EFAULT;
+  if (!access_ok(mbxes, count*sizeof(unsigned long))) return -EFAULT;
     
   list_for_each(pos, &mailBoxes) {
     theBox = NULL;
@@ -172,7 +172,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
 
-  if (!access_ok(VERIFY_READ, msg, n*sizeof(unsigned char))) return -EFAULT;
+  if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
 
 
   list_for_each(currBox, &mailBoxes) { //loop mailboxes
@@ -184,12 +184,13 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       unsigned char *kernelMsg;
       long newLen;
       uint32_t *kernelKey;
+      int i;
       msgNode_t * msgNode = NULL;
 
       //kmalloc
       msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t), GFP_KERNEL);
       if(!msgNode){
-        printk(stderr, "Allocation Error\n");
+        printk("Allocation Error\n");
         return -ENOMEM;
       }
       msgNode->msg = NULL;
@@ -198,8 +199,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
       if (box -> encryption == 0) {
         //XOR Cipher
-        int i;
-        if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
           return -EFAULT;
@@ -213,11 +213,10 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       }
       else{
         //XTEA Cipher
-        int i;
         int blockSize = 8;
         long padding;
         uint32_t *temp;
-        if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         for (i = 0; i < 4; i++){
           if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
@@ -239,8 +238,8 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
         msgNode->msg = (unsigned char *)kmalloc(newLen*sizeof(unsigned char*), GFP_KERNEL);
         if(!msgNode->msg){
-          printk(stderr, "Allocation Error\n");
-          return --ENOMEM;
+          printk("Allocation Error\n");
+          return -ENOMEM;
         }
 
         //In kernel code we need to copy to kernel memory
@@ -459,7 +458,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
   if (msg == NULL || n < 0 || key == NULL) //check passed in pointer
     return -EFAULT;
 
-  //if (!access_ok(VERIFY_WRITE, msg, n*sizeof(unsigned char))) return -EFAULT;
+  if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
   printk("adjustedLen: %ld\n", adjustedLen);
 
   //loop mboxes
@@ -489,7 +488,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
 
       if (pos -> encryption == 0) {
         //XOR Cipher
-        //if (!access_ok(VERIFY_READ, key, sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         if(!copy_from_user( &kernelKey[0], &key[0], sizeof(key))){
           return -EFAULT;
@@ -503,7 +502,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         long padding;
         int newLen;
         uint32_t *temp;
-        //if (!access_ok(VERIFY_READ, key, 4*sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t, GFP_KERNEL));
         for (i = 0; i < 4; i++){
           if(!copy_from_user( &kernelKey[i], &key[i], sizeof(uint32_t))){
@@ -541,7 +540,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
             memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
             memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
             printk("Printing out temp contents\n");
-            for (int i=0; i < 2; i++){
+            for (i=0; i < 2; i++){
               printk("%c\n", temp[i]);
             } 
             //((uint32_t *)temp)[0] ^= *kernelKey;
