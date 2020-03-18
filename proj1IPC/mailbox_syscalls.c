@@ -240,7 +240,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
             padding = blockSize - n;
          }
          else{
-            padding = (blockSize * int(n/blockSize) + blockSize) - n;   
+            padding = (blockSize * (int)(n/blockSize) + blockSize) - n;   
             printk("Padding is: %ld\n", padding);
          }
         newLen = n + padding;
@@ -334,7 +334,7 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
       padding = blockSize - n;
   }
   else{
-      padding = (blockSize * int(n/blockSize) + blockSize) - n;   
+      padding = (blockSize * (int)(n/blockSize) + blockSize) - n;   
   }
   newLen = n + padding;
 
@@ -385,7 +385,7 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
       padding = blockSize - n;
    }
    else{
-      padding = (blockSize * int(n/blockSize) + blockSize) - n;   
+      padding = (blockSize * (int)(n/blockSize) + blockSize) - n;   
    }
   newLen = n + padding;
 
@@ -528,7 +528,7 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
             padding = blockSize - adjustedLen;
          }
          else{
-            padding = (blockSize * int(adjustedLen/blockSize) + blockSize) - adjustedLen;   
+            padding = (blockSize * (int)(adjustedLen/blockSize) + blockSize) - adjustedLen;   
          }
         newLen = adjustedLen + padding;
 
