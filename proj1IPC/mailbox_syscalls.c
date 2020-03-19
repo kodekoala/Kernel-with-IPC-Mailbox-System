@@ -30,6 +30,7 @@ be encrypted with the XOR cipher described above. Otherwise, the messages
 shall be encrypted with the XTEA algorithm.
  */
 SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
+  down_write(&lock);
   mbox_t * new_mbox;
   kuid_t rootUid;
   struct list_head * currBox;
@@ -39,6 +40,7 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
+    up_write(&lock);
     return -EPERM;
   }
 
@@ -54,6 +56,7 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
     if (pos != NULL) {
       if (pos -> boxId == id) {
         printk("mbox %lu already exists\n", id);
+        up_write(&lock);
         return -EEXIST; //id already exists
       }
     }
@@ -69,6 +72,7 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
   printk("Created a mailbox with ID: %lu\n", new_mbox -> boxId);
   //Keep track of mailbox count
   mailboxCount++;
+  up_write(&lock);
   return 0;
 }
 
@@ -78,7 +82,7 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
    an appropriate error and not remove the mailbox.
  */
 SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
-
+  down_write(&lock);
   kuid_t rootUid;
   struct list_head * tmp;
   struct list_head * currBox = NULL;
@@ -89,6 +93,7 @@ SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
     printk("Not root! Please switch user");
+    up_write(&lock);
     return -EPERM;
   }
 
@@ -104,15 +109,18 @@ SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
         //kfree(currBox);
         kfree(box);
         mailboxCount--;
+        up_write(&lock);
         return 0;
       } 
       else {
         printk("The mailbox %lu is not empty\n", id);
+        up_write(&lock);
         return -ENOTEMPTY;
       }
     }
   }
   printk("The mailbox %lu does not exist\n", id);
+  up_write(&lock);
   return -ENOENT;
 }
 
@@ -133,12 +141,16 @@ SYSCALL_DEFINE2(list_mbox_421, unsigned long __user *, mbxes, long, k) {
   if (mbxes == NULL || k < 0)
     return -EFAULT;
 
+  down_read(&lock);
   //User is requesting for too many mboxes
   if (k > mailboxCount){
     count = mailboxCount;
   }
 
-  if (!access_ok(mbxes, count*sizeof(unsigned long))) return -EFAULT;
+  if (!access_ok(mbxes, count*sizeof(unsigned long))){
+    up_read(&lock);
+    return -EFAULT;
+  }
     
   list_for_each(pos, &mailBoxes) {
     theBox = NULL;
@@ -150,13 +162,18 @@ SYSCALL_DEFINE2(list_mbox_421, unsigned long __user *, mbxes, long, k) {
     }
     
   }
+  up_read(&lock);
   return writtenIDs;
 }
 
 /* returns the number of existing mailboxes.
  */
 SYSCALL_DEFINE0(count_mbox_421) {
-  return mailboxCount;
+  unsigned int tmp;
+  down_read(&lock);
+  tmp = mailboxCount;
+  up_read(&lock);
+  return tmp;
 }
 
 /* 
@@ -181,12 +198,15 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
   printk("After msg copy in send_msg_421");
 
+  down_read(&lock);
+
   list_for_each(currBox, &mailBoxes) { //loop mailboxes
     box = NULL;
     box = list_entry(currBox, mbox_t, list_node);
 
     //search for mailbox id
     if (box -> boxId == id) {
+      down_write(&lock);
       unsigned char *kernelMsg;
       long newLen;
       uint32_t *kernelKey;
@@ -197,6 +217,8 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t), GFP_KERNEL);
       if(!msgNode){
         printk("Allocation Error\n");
+        up_write(&lock);
+        up_read(&lock);
         return -ENOMEM;
       }
       msgNode->msg = NULL;
@@ -206,14 +228,25 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       if (box -> encryption == 0) {
         //XOR Cipher
         printk("Before key check in send_msg_421 for XOR\n");
-        if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, sizeof(uint32_t))){
+          up_write(&lock);
+          up_read(&lock);
+          return -EFAULT;
+        }
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         printk("Before key copy in send_msg_421 for XOR\n");
         if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         newLen = xorCrypt(&(msgNode->msg), kernelMsg, msg, n, kernelKey);
+        if (newLen < 0){
+          up_write(&lock);
+          up_read(&lock);
+          return newLen;
+        }
         for (i = 0 ; i < n ; i++ ){
           //msgNode->msg[i] = 'a';
           printk("%d\n", msgNode->msg[i]);
@@ -225,11 +258,17 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         long padding;
         uint32_t *temp;
         printk("Before key check in send_msg_421 for XTEA\n");
-        if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, 4*sizeof(uint32_t))){
+          up_write(&lock);
+          up_read(&lock);
+          return -EFAULT;
+        }
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
         
         printk("Before key copy in send_msg_421 for XTEA");
         if(copy_from_user( &kernelKey[0], &key[0], (4*sizeof(uint32_t))) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -250,14 +289,24 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         msgNode->msg = (unsigned char *)kmalloc(newLen*sizeof(unsigned char*), GFP_KERNEL);
         if(!msgNode->msg){
           printk("Allocation Error\n");
+          up_write(&lock);
+          up_read(&lock);
           return -ENOMEM;
         }
 
         //In kernel code we need to copy to kernel memory
         kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
+        if(!kernelMsg){
+          printk("Allocation Error\n");
+          up_write(&lock);
+          up_read(&lock);
+          return -ENOMEM;
+        }
         //temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         printk("Before msg copy in send_msg_421 for XTEA\n");
         if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
@@ -314,10 +363,14 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       msgNode -> msgLen = n;
       list_add_tail( &msgNode -> list_node, &box -> msgs);
 
+      up_write(&lock);
+      up_read(&lock);
       return n; //number of bytes stored on success
       //error code on failure
     }
   }
+  up_read(&lock);
+
   printk("Couldn't find mailbox with %lu ID\n", id);
   return -ENOENT;
 }
@@ -428,7 +481,7 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
     printk("%d\n", msg[i]);
   }
   printk("=============================\n");
-
+  return 0;
 }
 
 /* Encrypt 64 bits of plaintext. Modifies the message in-place. */
@@ -464,7 +517,7 @@ static void xtea_dec(uint32_t *v, uint32_t const key[4]) {
 
 static long receive(int delete, unsigned long id, unsigned char * msg, long n, uint32_t * key)
 {
-    struct list_head *currBox;
+  struct list_head *currBox;
   long adjustedLen = n;
   mbox_t* pos;
 
@@ -474,19 +527,23 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
   if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
   printk("adjustedLen: %ld\n", adjustedLen);
 
+  down_read(&lock);
   //loop mboxes
   list_for_each(currBox, &mailBoxes) { //find mbox id
     int i;
     msgNode_t* firstMsg;
-    long messageLen;
+    long messageLen, confirmation;
     unsigned char *kernelMsg;
     uint32_t *kernelKey; 
     pos = NULL;
     pos = list_entry(currBox, mbox_t, list_node);    
 
     if (pos->boxId == id) {
+      down_write(&lock);
       if (list_empty(&pos->msgs)) { //check if empty
         printk("No message in mailbox with ID: %lu\n", id);
+        up_write(&lock);
+        up_read(&lock);
         return ENOENT; //return error if no messages
       }
       //otherwise find the first message
@@ -501,13 +558,24 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
 
       if (pos -> encryption == 0) {
         //XOR Cipher
-        if (!access_ok(key, sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, sizeof(uint32_t))){
+          up_write(&lock);
+          up_read(&lock);
+          return -EFAULT;
+        }
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
-        xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
+        confirmation = xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
+        if (confirmation < 0){
+          up_write(&lock);
+          up_read(&lock);
+          return confirmation;
+        }
       }
       else{
         //XTEA Cipher
@@ -515,10 +583,16 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         long padding;
         int newLen;
         uint32_t *temp;
-        if (!access_ok(key, 4*sizeof(uint32_t))) return -EFAULT;
+        if (!access_ok(key, 4*sizeof(uint32_t))){ 
+          up_write(&lock);
+          up_read(&lock);
+          return -EFAULT;
+        }
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
 
         if(copy_from_user( &kernelKey[0], &key[0], 4*sizeof(uint32_t)) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -562,6 +636,8 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         }
 
         if(copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char)) != 0){
+          up_write(&lock);
+          up_read(&lock);
           return -EFAULT;
         }
 
@@ -580,10 +656,13 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
       for (i = 0 ; i < adjustedLen ; i++ ){
         printk("%d\n", msg[i]);
       }
-      //kfree(s);      
+      //kfree(s);
+      up_write(&lock);
+      up_read(&lock);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
   }
+  up_read(&lock);
   return -ENOENT; 
 }
 
@@ -616,6 +695,7 @@ SYSCALL_DEFINE1(count_msg_421, unsigned long, id) {
   mbox_t * pos;
   //check if given ID exists
   //Loop over mboxes list
+  down_read(&lock);
   list_for_each(currBox, &mailBoxes) {
     pos = NULL;
 
@@ -623,17 +703,20 @@ SYSCALL_DEFINE1(count_msg_421, unsigned long, id) {
     //that is currently pointed to by the currBox pointer in the mboxes list
     pos = list_entry(currBox, mbox_t, list_node);
 
-    if (pos->boxId == id) {    
+    if (pos->boxId == id) {
+      down_write(&lock);    
       //loop msgs
       msgNode_t* curr_msg;
       list_for_each_entry(curr_msg, &pos->msgs, list_node) {
         count++;
       }
+      up_write(&lock);
+      up_read(&lock);
       return count;
     }
   }
-
   printk("message box %lu does not exist\n", id);
+  up_read(&lock);
   return -ENOENT;
 }
 
@@ -651,6 +734,7 @@ SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
   mbox_t * pos;
   //check if given ID exists
   //Loop over mboxes list
+  down_read(&lock);
   list_for_each(currBox, &mailBoxes) {
     pos = NULL;
 
@@ -660,19 +744,23 @@ SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
 
     if (pos != NULL) {
       if (pos -> boxId == id) {
+        down_write(&lock);
         msgNode_t* firstMsg;
         if (list_empty(&pos->msgs)) { //check if empty
           printk("No msg in ID %lu\n", id);
+          up_write(&lock);
+          up_read(&lock);
           return -ENOENT; //return error if no messages
         }
         //find first message
         firstMsg = list_first_entry(&pos->msgs, msgNode_t, list_node);      
-      
+        up_write(&lock);
+        up_read(&lock);
         return firstMsg->msgLen;//return byte count
       }
     }
   }
-
+  up_read(&lock);
   printk("Mailbox of ID: %lu does not exist\n", id);
   return -ENOENT;
 }
