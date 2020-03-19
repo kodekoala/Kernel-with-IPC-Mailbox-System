@@ -1,0 +1,1 @@
+Here is a makefile that you can call for testing out general functionality of the system calls. It doesn't test out multithreading and functionality between threads. However, it does include all the calls.
