@@ -1,4 +1,5 @@
 #include "mailbox_syscalls.h"
+static DECLARE_RWSEM(lock);
 
 typedef struct msgNode {
   unsigned char * msg;

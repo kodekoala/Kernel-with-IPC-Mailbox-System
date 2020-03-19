@@ -5,6 +5,7 @@
 #include <linux/syscalls.h>
 #include "list.h"
 #include <linux/cred.h>
+#include <linux/rwsem.h>
 
 //#include <stdio.h>
 //#include <stdlib.h>
