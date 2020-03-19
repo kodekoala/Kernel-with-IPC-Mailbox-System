@@ -199,7 +199,7 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
   printk("After msg copy in send_msg_421");
 
-  down_read(&lock);
+  down_write(&lock);
 
   list_for_each(currBox, &mailBoxes) { //loop mailboxes
     box = NULL;
@@ -212,14 +212,12 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
       uint32_t *kernelKey;
       int i;
       msgNode_t * msgNode = NULL;
-      down_write(&lock);
 
       //kmalloc
       msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t), GFP_KERNEL);
       if(!msgNode){
         printk("Allocation Error\n");
         up_write(&lock);
-        up_read(&lock);
         return -ENOMEM;
       }
       msgNode->msg = NULL;
@@ -231,26 +229,19 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         printk("Before key check in send_msg_421 for XOR\n");
         if (!access_ok(key, sizeof(uint32_t))){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         printk("Before key copy in send_msg_421 for XOR\n");
         if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         newLen = xorCrypt(&(msgNode->msg), kernelMsg, msg, n, kernelKey);
         if (newLen < 0){
           up_write(&lock);
-          up_read(&lock);
           return newLen;
-        }
-        for (i = 0 ; i < n ; i++ ){
-          //msgNode->msg[i] = 'a';
-          printk("%d\n", msgNode->msg[i]);
         }
       }
       else{
@@ -260,7 +251,6 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         printk("Before key check in send_msg_421 for XTEA\n");
         if (!access_ok(key, 4*sizeof(uint32_t))){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
@@ -268,7 +258,6 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         printk("Before key copy in send_msg_421 for XTEA");
         if(copy_from_user( &kernelKey[0], &key[0], (4*sizeof(uint32_t))) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
@@ -280,17 +269,13 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
          }
          else{
             padding = (blockSize * (int)(n/blockSize) + blockSize) - n;   
-            printk("Padding is: %ld\n", padding);
          }
         newLen = n + padding;
-        printk("Newlen is: %ld\n", newLen);
-
 
         msgNode->msg = (unsigned char *)kmalloc(newLen*sizeof(unsigned char*), GFP_KERNEL);
         if(!msgNode->msg){
           printk("Allocation Error\n");
           up_write(&lock);
-          up_read(&lock);
           return -ENOMEM;
         }
 
@@ -299,14 +284,12 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         if(!kernelMsg){
           printk("Allocation Error\n");
           up_write(&lock);
-          up_read(&lock);
           return -ENOMEM;
         }
         //temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         printk("Before msg copy in send_msg_421 for XTEA\n");
         if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelMsg[0], &msg[0], n * sizeof(unsigned char));
@@ -314,35 +297,14 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
             kernelMsg[i] = 0x00;
         }  
 
-        printk("111111111111111111111111111111\n");
-
-        for (i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
-        }
-
-        printk("222222222222222222222222222222\n");
-
         //int i = 0; i + 8 < newLen; i += 8*sizeof(unsigned char)
         i = 0;
           // This assumes that data is aligned on a 4-byte boundary
         do{
-            printk("i is equal to: %d\n", i);
-            //memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-            //memcpy(&temp[1], &kernelMsg[i+4], 4 * sizeof(unsigned char));
-
-            printk("Printing out temp contents\n");
-
-            //((uint32_t *)temp)[0] ^= *kernelKey;
             xtea_enc((uint32_t *)&kernelMsg[i], kernelKey);
-            //memcpy( &kernelMsg[i], ((uint32_t *)temp), 8 * sizeof(unsigned char));
             i += 8;
         }while(i < newLen);
 
-        for (i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
-        }
-
-        //kfree(temp);
 
         for (i=0; i<newLen; i++) {
           msgNode->msg[i] = kernelMsg[i];
@@ -352,24 +314,17 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         //kfree(kernelKey);
       }
 
-      printk("3333333333333333333333333333333333333\n");
-      for (i = 0 ; i < n ; i++ ){
-         //msgNode->msg[i] = 'a';
-        printk("%d\n", msgNode->msg[i]);
-      }
-
       kfree(kernelKey);
 
       msgNode -> msgLen = n;
       list_add_tail( &msgNode -> list_node, &box -> msgs);
 
       up_write(&lock);
-      up_read(&lock);
       return n; //number of bytes stored on success
       //error code on failure
     }
   }
-  up_read(&lock);
+  up_write(&lock);
 
   printk("Couldn't find mailbox with %lu ID\n", id);
   return -ENOENT;
@@ -397,7 +352,6 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   kernelMsg = (unsigned char *) kmalloc (newLen*sizeof(unsigned char), GFP_KERNEL);
   temp = (unsigned char *) kmalloc (4*sizeof(unsigned char), GFP_KERNEL);
 
-  printk("Before msg copy in send_msg_421 for XOR\n");
   if(copy_from_user( &kernelMsg[0], &msg[0], n * sizeof(unsigned char)) != 0){
     return -EFAULT;
   }
@@ -422,8 +376,6 @@ long xorCrypt(unsigned char ** boxMsg, unsigned char *kernelMsg, unsigned char *
   memcpy(*boxMsg, &kernelMsg[0], n * sizeof(unsigned char));
 
   kfree(kernelMsg);
-
-  printk("!!!!!!!!!!!!!!\n");
 
   return newLen;
 }
@@ -456,31 +408,18 @@ long xorDecrypt(unsigned char * boxMsg, unsigned char *kernelMsg, unsigned char 
   for(i = 0; i + 3 < newLen; i += 4*sizeof(unsigned char)){
       int j;
       memcpy(&temp[0], &kernelMsg[i], 4 * sizeof(unsigned char));
-      for (j = 0 ; i < 4 ; i++ ){
-        printk("Inside temp:\n");
-        printk("%d\n", temp[j]);
-      }
       ((uint32_t *)temp)[0] ^= *key;
       memcpy( &kernelMsg[i], &temp[0], 4 * sizeof(unsigned char));
   }
-  printk("=============================\n");
 
   kfree(temp);
 
   if(copy_to_user( &msg[0], &kernelMsg[0], n * sizeof(unsigned char)) != 0){
     return -EFAULT;
   }
-  //memcpy( &msg[0], &kernelMsg[0], n * sizeof(unsigned char));
-
-  // for (int i=0; i<n; i++) {
-  //   msg[i] = kernelMsg[i];
-  // }
 
   kfree(kernelMsg);
-  for (i = 0 ; i < n ; i++ ){
-    printk("%d\n", msg[i]);
-  }
-  printk("=============================\n");
+
   return 0;
 }
 
@@ -525,9 +464,8 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
     return -EFAULT;
 
   if (!access_ok(msg, n*sizeof(unsigned char))) return -EFAULT;
-  printk("adjustedLen: %ld\n", adjustedLen);
 
-  down_read(&lock);
+  down_write(&lock);
   //loop mboxes
   list_for_each(currBox, &mailBoxes) { //find mbox id
     int i;
@@ -539,11 +477,9 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
     pos = list_entry(currBox, mbox_t, list_node);    
 
     if (pos->boxId == id) {
-      down_write(&lock);
       if (list_empty(&pos->msgs)) { //check if empty
         printk("No message in mailbox with ID: %lu\n", id);
         up_write(&lock);
-        up_read(&lock);
         return ENOENT; //return error if no messages
       }
       //otherwise find the first message
@@ -560,20 +496,17 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         //XOR Cipher
         if (!access_ok(key, sizeof(uint32_t))){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         kernelKey = (uint32_t *) kmalloc (sizeof(key), GFP_KERNEL);
         if(copy_from_user( &kernelKey[0], &key[0], sizeof(key)) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         //memcpy (&kernelKey[0], &key[0], sizeof(key));
         confirmation = xorDecrypt(firstMsg->msg, kernelMsg, msg, adjustedLen, kernelKey);
         if (confirmation < 0){
           up_write(&lock);
-          up_read(&lock);
           return confirmation;
         }
       }
@@ -584,19 +517,15 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         int newLen;
         if (!access_ok(key, 4*sizeof(uint32_t))){ 
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
         kernelKey = (uint32_t *) kmalloc (4 * sizeof(uint32_t), GFP_KERNEL);
 
         if(copy_from_user( &kernelKey[0], &key[0], 4*sizeof(uint32_t)) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
-        //memcpy (&kernelKey[i], &key[i], sizeof(uint32_t));
         
-
          if (adjustedLen < blockSize){
             padding = blockSize - adjustedLen;
          }
@@ -610,33 +539,21 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         //temp = (uint32_t *) kmalloc (8*sizeof(unsigned char), GFP_KERNEL);
         memcpy (&kernelMsg[0], &(firstMsg->msg)[0], newLen*sizeof(unsigned char));
 
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-
-        for (i = 0 ; i < newLen ; i++ ){
-            printk("%d\n", kernelMsg[i]);
-        }
-
-        printk("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-
         i = 0;
 
         do{
-            //memcpy(&temp[0], &kernelMsg[i], 8 * sizeof(unsigned char));
             xtea_dec((uint32_t *)&kernelMsg[i], kernelKey);
-            //memcpy( &kernelMsg[i], (&temp[0]), 8 * sizeof(unsigned char));
             i += 8;
         }while(i < newLen);
 
         //kfree(temp);
 
-        printk("::::::::::::::::::::::::::::\n");
         for (i = 0 ; i < newLen ; i++ ){
             printk("%d\n", kernelMsg[i]);
         }
 
         if(copy_to_user( &msg[0], &kernelMsg[0], adjustedLen * sizeof(unsigned char)) != 0){
           up_write(&lock);
-          up_read(&lock);
           return -EFAULT;
         }
 
@@ -657,11 +574,10 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
       }
       //kfree(s);
       up_write(&lock);
-      up_read(&lock);      
       return (adjustedLen); //return minimum(n, len(msg @ id))
     }
   }
-  up_read(&lock);
+  up_write(&lock);
   return -ENOENT; 
 }
 
@@ -705,11 +621,9 @@ SYSCALL_DEFINE1(count_msg_421, unsigned long, id) {
     if (pos->boxId == id) {    
       //loop msgs
       msgNode_t* curr_msg;
-      down_write(&lock);
       list_for_each_entry(curr_msg, &pos->msgs, list_node) {
         count++;
       }
-      up_write(&lock);
       up_read(&lock);
       return count;
     }
@@ -744,16 +658,13 @@ SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
     if (pos != NULL) {
       if (pos -> boxId == id) {
         msgNode_t* firstMsg;
-        down_write(&lock);
         if (list_empty(&pos->msgs)) { //check if empty
           printk("No msg in ID %lu\n", id);
-          up_write(&lock);
           up_read(&lock);
           return -ENOENT; //return error if no messages
         }
         //find first message
         firstMsg = list_first_entry(&pos->msgs, msgNode_t, list_node);      
-        up_write(&lock);
         up_read(&lock);
         return firstMsg->msgLen;//return byte count
       }
