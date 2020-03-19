@@ -1,3 +1,7 @@
-Linux Kernel with IPC mailbox implementation - in progress
+Linux Kernel with IPC mailbox implementation 
 
-I currently am prototyping the functionality for the mailbox system calls in the proj1proto directory, and have addition, deletion, searching, and sending of messages working. Hopefully will be done with rest of the functions soon and will be working on locking.
+I have successfully implemented the prototype in proj1proto, which can be run with the makefile in its directory.
+
+I then implemented the system calls based on the prototype, in proj1IPC. I made the necessary changes to the kernel, and it compiles successfully.
+
+I added rwlocking, though I have not tested it extensively - however no deadlocking is observed.
