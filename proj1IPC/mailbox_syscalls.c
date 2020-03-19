@@ -31,12 +31,12 @@ be encrypted with the XOR cipher described above. Otherwise, the messages
 shall be encrypted with the XTEA algorithm.
  */
 SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
-  down_write(&lock);
   mbox_t * new_mbox;
   kuid_t rootUid;
   struct list_head * currBox;
   mbox_t * pos = NULL;
   rootUid.val = 0;
+  down_write(&lock);
 
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
     // Tell user to run app as root, then exit.
@@ -83,12 +83,12 @@ SYSCALL_DEFINE2(create_mbox_421, unsigned long, id, int, crypt_alg){
    an appropriate error and not remove the mailbox.
  */
 SYSCALL_DEFINE1(remove_mbox_421, unsigned long, id){
-  down_write(&lock);
   kuid_t rootUid;
   struct list_head * tmp;
   struct list_head * currBox = NULL;
   mbox_t * box = NULL;
   rootUid.val = 0;
+  down_write(&lock);
 
 
   if (!uid_eq(get_current_cred()->uid, rootUid)) {
@@ -207,12 +207,12 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
 
     //search for mailbox id
     if (box -> boxId == id) {
-      down_write(&lock);
       unsigned char *kernelMsg;
       long newLen;
       uint32_t *kernelKey;
       int i;
       msgNode_t * msgNode = NULL;
+      down_write(&lock);
 
       //kmalloc
       msgNode = (msgNode_t * ) kmalloc(sizeof(msgNode_t), GFP_KERNEL);
@@ -257,7 +257,6 @@ SYSCALL_DEFINE4(send_msg_421, unsigned long, id, unsigned char __user *, msg, lo
         //XTEA Cipher
         int blockSize = 8;
         long padding;
-        uint32_t *temp;
         printk("Before key check in send_msg_421 for XTEA\n");
         if (!access_ok(key, 4*sizeof(uint32_t))){
           up_write(&lock);
@@ -583,7 +582,6 @@ static long receive(int delete, unsigned long id, unsigned char * msg, long n, u
         int blockSize = 8;
         long padding;
         int newLen;
-        uint32_t *temp;
         if (!access_ok(key, 4*sizeof(uint32_t))){ 
           up_write(&lock);
           up_read(&lock);
@@ -704,10 +702,10 @@ SYSCALL_DEFINE1(count_msg_421, unsigned long, id) {
     //that is currently pointed to by the currBox pointer in the mboxes list
     pos = list_entry(currBox, mbox_t, list_node);
 
-    if (pos->boxId == id) {
-      down_write(&lock);    
+    if (pos->boxId == id) {    
       //loop msgs
       msgNode_t* curr_msg;
+      down_write(&lock);
       list_for_each_entry(curr_msg, &pos->msgs, list_node) {
         count++;
       }
@@ -745,8 +743,8 @@ SYSCALL_DEFINE1(len_msg_421, unsigned long, id) {
 
     if (pos != NULL) {
       if (pos -> boxId == id) {
-        down_write(&lock);
         msgNode_t* firstMsg;
+        down_write(&lock);
         if (list_empty(&pos->msgs)) { //check if empty
           printk("No msg in ID %lu\n", id);
           up_write(&lock);
