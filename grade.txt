@@ -1,0 +1,35 @@
+CMSC 421 Project 1 Grade
+Total Possible Points: 100
+
+Student : 
+Email : asfari1@umbc.edu
+Github Username : kodekoala
+
+
+------------------------------------------------------------------
+General                                        
+    - Root Makefile and additional Makefiles written properly : 5/5
+    - Kernel successfully compiles                            : 5/5
+    - Tests                                                   : 20/20
+    - Mailbox Data Structure Functionality                    : 10/10
+------------------------------------------------------------------
+Mailbox Management
+    - Create & Remove                                         : 10/10
+    - Recv & Peek                                             : 10/10
+    - Send                                                    : 5/5
+    - Count & List Malboxes                                   : 5/5
+    - Count & Length of Messages                              : 10/10
+------------------------------------------------------------------
+Encryption & Locking
+    - Locking implemented                                     : 10/10
+    - Encryption implemented                                  : 10/10
+------------------------------------------------------------------
+Late penalty, if applicable                                   : 
+------------------------------------------------------------------
+
+Final Project 1 Grade                                         : 100/100
+
+Comments from the TA:
+
+
+------------------------------------------------------------------
